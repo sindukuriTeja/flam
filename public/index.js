@@ -65,8 +65,9 @@ class DrawingCanvasApp {
         try {
             if (typeof io !== 'undefined') {
                 this.socket = io();
+                console.log('Socket.IO connected successfully');
             } else {
-                console.warn('Socket.IO not loaded');
+                console.warn('Socket.IO library not loaded - running in offline mode');
             }
         } catch (error) {
             console.error('Socket initialization failed:', error);
@@ -74,12 +75,14 @@ class DrawingCanvasApp {
     }
     
     init() {
+        console.log('Drawing Canvas App initializing...');
         this.setupCanvases();
         this.setupColorPalette();
         this.setupEventListeners();
         this.setupSocketListeners();
         this.saveState();
         this.updateUI();
+        console.log('Drawing Canvas App initialized successfully!');
     }
     setupSocketListeners() {
         if (!this.socket) return;
@@ -264,6 +267,8 @@ class DrawingCanvasApp {
     startDrawing(e) {
         e.preventDefault();
         const currentPoint = this.getPointInCanvas(e);
+        
+        console.log('Start drawing with tool:', this.currentTool, 'at', currentPoint);
         
         if (this.currentTool === 'select') {
             if (this.selectionRect && this.isPointInSelection(currentPoint, this.selectionRect)) {
