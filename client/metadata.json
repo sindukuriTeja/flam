@@ -1,0 +1,5 @@
+{
+  "name": "Collaborative Drawing Canvas",
+  "description": "A real-time collaborative drawing canvas application built with React, TypeScript, and Tailwind CSS. Users can draw, change colors, adjust brush sizes, and clear the canvas.",
+  "requestFramePermissions": []
+}
