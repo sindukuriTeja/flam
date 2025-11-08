@@ -1,7 +1,5 @@
 import { Point, Tool, SelectionRect, DrawAction } from './types';
 
-
-// New color palette to match the design
 const PRESET_COLORS = [
   '#000000', '#ef4444', '#22c55e', '#3b82f6', '#f59e0b',
   '#ec4899', '#8b5cf6', '#f97316', '#4b5563', '#ffffff'
@@ -13,7 +11,6 @@ class DrawingCanvasApp {
   private selectionCanvas: HTMLCanvasElement;
   private selectionCtx: CanvasRenderingContext2D;
 
-  // Toolbar elements
   private toolContainer: HTMLElement;
   private colorPalette: HTMLElement;
   private customColorPickerLabel: HTMLLabelElement;
@@ -27,7 +24,6 @@ class DrawingCanvasApp {
   private clearBtn: HTMLButtonElement;
   private downloadBtn: HTMLButtonElement;
 
-  // State
   private currentTool: Tool = 'brush';
   private color: string = '#000000';
   private brushSize: number = 5;
@@ -37,7 +33,6 @@ class DrawingCanvasApp {
   private snapshot: ImageData | null = null;
   private currentBrushStroke: Point[] = [];
   
-  // Selection state
   private selectionRect: SelectionRect | null = null;
   private isMovingSelection: boolean = false;
   private moveStartPoint: Point | null = null;
@@ -45,7 +40,6 @@ class DrawingCanvasApp {
 
   private readonly CANVAS_BG_COLOR = '#ffffff';
 
-  // History for Undo/Redo
   private historyStack: ImageData[] = [];
   private redoStack: ImageData[] = [];
   private static readonly MAX_HISTORY_SIZE = 50;
@@ -57,7 +51,6 @@ class DrawingCanvasApp {
     this.selectionCanvas = document.getElementById('selection-canvas') as HTMLCanvasElement;
     this.selectionCtx = this.selectionCanvas.getContext('2d')!;
     
-    // Query toolbar elements
     this.toolContainer = document.getElementById('tool-container')!;
     this.colorPalette = document.getElementById('color-palette')!;
     this.brushSizeSlider = document.getElementById('brush-size') as HTMLInputElement;
@@ -69,7 +62,6 @@ class DrawingCanvasApp {
     this.clearBtn = document.getElementById('clear-btn') as HTMLButtonElement;
     this.downloadBtn = document.getElementById('download-btn') as HTMLButtonElement;
     
-    // Elements to be created dynamically
     this.customColorPickerLabel = null!;
     this.customColorPickerInput = null!;
 
@@ -85,7 +77,7 @@ class DrawingCanvasApp {
     this.setupCanvases();
     this.populateColorPalette();
     this.initEventListeners();
-    this.saveState(); // Save initial blank state
+    this.saveState(); 
     this.updateUI();
   }
   
@@ -159,7 +151,6 @@ class DrawingCanvasApp {
     this.downloadBtn.addEventListener('click', this.downloadImage.bind(this));
   }
 
-  // Event Handlers
   private getPointInCanvas(e: MouseEvent | TouchEvent): Point {
     const rect = this.canvas.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -172,7 +163,7 @@ class DrawingCanvasApp {
     const currentPoint = this.getPointInCanvas(e);
     
     if (this.currentTool === 'select') {
-        // ... (existing selection logic)
+
         return;
     }
 
@@ -286,7 +277,7 @@ class DrawingCanvasApp {
     this.isFillEnabled = (e.target as HTMLInputElement).checked;
   }
 
-  // Drawing logic
+
   private executeDrawAction(ctx: CanvasRenderingContext2D, action: DrawAction) {
       if (action.tool === 'brush' || action.tool === 'eraser') {
           if (action.points && action.points.length > 1) {
@@ -370,12 +361,9 @@ class DrawingCanvasApp {
     ctx.lineTo(to.x - headlen * Math.cos(angle + Math.PI / 6), to.y - headlen * Math.sin(angle + Math.PI / 6));
   }
   
-  // Selection logic
+ 
   private clearSelection() { /* ... existing logic ... */ }
-  // ... other selection methods ...
-
-
-  // History management
+ 
   private saveState() {
     this.redoStack = []; 
     if (this.historyStack.length >= DrawingCanvasApp.MAX_HISTORY_SIZE) {
@@ -427,11 +415,9 @@ class DrawingCanvasApp {
   }
 
 
-  // UI update logic
   private updateUI() {
     this.brushSizeValue.textContent = `${this.brushSize} px`;
     
-    // Update tool selection UI
     this.toolContainer.querySelectorAll('.tool-btn').forEach(btn => {
         const button = btn as HTMLButtonElement;
         const tool = button.dataset.tool;
@@ -448,7 +434,6 @@ class DrawingCanvasApp {
     
     this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
 
-    // Update color palette UI
     this.colorPalette.querySelectorAll('button').forEach(btn => {
         btn.classList.remove('ring-2', 'ring-offset-2', 'ring-primary');
         if (btn.dataset.color === this.color) {
