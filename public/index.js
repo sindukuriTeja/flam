@@ -276,7 +276,14 @@ class DrawingCanvasApp {
         
         this.socket.on('canvasState', (state) => {
             console.log('🖼️ Received canvas state update from another user');
-            this.ctx.putImageData(state, 0, 0);
+            // Validate state before applying
+            if (state && this.ctx) {
+                try {
+                    this.ctx.putImageData(state, 0, 0);
+                } catch (e) {
+                    console.warn('Failed to apply canvas state:', e);
+                }
+            }
             // Save to history
             this.saveState();
         });
@@ -428,6 +435,13 @@ class DrawingCanvasApp {
         const parent = this.canvas.parentElement;
         const rect = parent.getBoundingClientRect();
         
+        // Ensure parent has valid dimensions
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn('Canvas parent has zero dimensions, retrying...');
+            setTimeout(() => this.setupCanvases(), 100);
+            return;
+        }
+        
         // Set canvas dimensions
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
@@ -442,6 +456,8 @@ class DrawingCanvasApp {
         this.selectionCanvas.style.height = rect.height + 'px';
         this.cursorCanvas.style.width = rect.width + 'px';
         this.cursorCanvas.style.height = rect.height + 'px';
+        
+        console.log('Canvas dimensions set:', rect.width, 'x', rect.height);
         
         // Handle window resize
         window.addEventListener('resize', () => {
@@ -639,12 +655,27 @@ class DrawingCanvasApp {
                 this.clearSelectionMarquee();
                 this.drawSelectionMarquee(this.startPoint, currentPoint);
             } else if (this.isMovingSelection && this.selectionImageData) {
-                this.ctx.putImageData(this.historyStack[this.historyStack.length - 1], 0, 0);
+                if (this.historyStack.length > 0) {
+                    const lastState = this.historyStack[this.historyStack.length - 1];
+                    if (lastState && this.ctx) {
+                        try {
+                            this.ctx.putImageData(lastState, 0, 0);
+                        } catch (e) {
+                            console.warn('Failed to restore history state:', e);
+                        }
+                    }
+                }
                 const dx = currentPoint.x - this.moveStartPoint.x;
                 const dy = currentPoint.y - this.moveStartPoint.y;
-                this.ctx.putImageData(this.selectionImageData, 
+                if (this.selectionImageData && this.ctx && this.selectionRect) {
+                    try {
+                        this.ctx.putImageData(this.selectionImageData, 
                                     this.selectionRect.x + dx, 
                                     this.selectionRect.y + dy);
+                    } catch (e) {
+                        console.warn('Failed to restore selection image data:', e);
+                    }
+                }
             }
             return;
         }
@@ -664,7 +695,13 @@ class DrawingCanvasApp {
             case 'triangle':
             case 'arrow':
                 if (this.snapshot) {
+                if (this.snapshot && this.ctx) {
+                try {
                     this.ctx.putImageData(this.snapshot, 0, 0);
+                } catch (e) {
+                    console.warn('Failed to restore snapshot:', e);
+                }
+            }
                     this.drawShape(this.ctx, this.currentTool, this.startPoint, currentPoint,
                                  this.color, this.brushSize, this.isFillEnabled);
                 }
@@ -1043,8 +1080,6 @@ Anyone with this link can join and draw together!`;
                 this.fillShapeContainer.style.display = 'none';
             }
         }
-        
-        this.updateUI();
     }
 }
 // Initialize app when DOM is ready
