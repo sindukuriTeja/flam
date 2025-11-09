@@ -7,3 +7,13 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /*
+        name: Pragma
+        value: no-cache
+      - path: /*
+        name: Expires
+        value: "0"
