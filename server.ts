@@ -105,14 +105,17 @@ io.on('connection', (socket) => {
   socket.on('drawAction', (action) => {
     const room = getOrCreateRoom(currentRoom);
     room.drawingHistory.push(action);
-    // Broadcast to all users in the same room
-    socket.to(currentRoom).emit('drawAction', action);
+    console.log(`Broadcasting drawAction to room ${currentRoom}, history size: ${room.drawingHistory.length}`);
+    // Broadcast to ALL users in the same room (including sender for confirmation)
+    io.to(currentRoom).emit('drawAction', action);
   });
 
   socket.on('canvasState', (state) => {
     const room = getOrCreateRoom(currentRoom);
     room.canvasState = state;
-    socket.to(currentRoom).emit('canvasState', state);
+    console.log(`Broadcasting canvasState to room ${currentRoom}`);
+    // Broadcast to ALL users in room
+    io.to(currentRoom).emit('canvasState', state);
   });
   
   socket.on('undoAction', () => {
@@ -127,7 +130,9 @@ io.on('connection', (socket) => {
     const room = getOrCreateRoom(currentRoom);
     room.canvasState = null;
     room.drawingHistory = [];
-    socket.to(currentRoom).emit('clearCanvas');
+    console.log(`Broadcasting clearCanvas to room ${currentRoom}`);
+    // Broadcast to ALL users in room (including sender)
+    io.to(currentRoom).emit('clearCanvas');
   });
 
   socket.on('disconnect', () => {

@@ -107,9 +107,10 @@ class DrawingCanvasApp {
         if (!this.socket) return;
         
         this.socket.on('drawAction', (action) => {
-            console.log('Received drawAction from other user:', action);
+            console.log('Received drawAction from server:', action);
+            // Only execute if it's from another user (check if we just sent this)
+            // Execute the action to show other users' drawings
             this.executeDrawAction(this.ctx, action);
-            this.saveState();
         });
         
         this.socket.on('canvasState', (state) => {
@@ -146,7 +147,7 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('clearCanvas', () => {
-            console.log('Received clear canvas from other user');
+            console.log('Received clear canvas from server');
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.historyStack = [];
             this.saveState();
