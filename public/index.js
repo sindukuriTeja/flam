@@ -43,6 +43,8 @@ class DrawingCanvasApp {
         this.brushSizeValue = document.getElementById('brush-size-value');
         this.fillShapeContainer = document.getElementById('fill-shape-container');
         this.fillShapeCheckbox = document.getElementById('fill-shape');
+        this.undoBtn = document.getElementById('undo-btn');
+        this.redoBtn = document.getElementById('redo-btn');
         this.clearBtn = document.getElementById('clear-btn');
         this.downloadBtn = document.getElementById('download-btn');
         this.shareLinkBtn = document.getElementById('share-link-btn');
@@ -115,20 +117,30 @@ class DrawingCanvasApp {
         this.socket.on('canvasState', (state) => {
             console.log('🖼️ Received canvas state update from another user');
             this.ctx.putImageData(state, 0, 0);
-            // Save to history so this user can undo/redo independently
+            // Save to history
             this.saveState();
-            this.updateUndoRedoUI();
         });
         
         this.socket.on('syncHistory', (history) => {
-            console.log('Syncing drawing history:', history.length, 'actions');
+            console.log(`🔄 GLOBAL SYNC: Rebuilding canvas from ${history.length} actions`);
             // Clear canvas first
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            // Replay all drawing actions for new users
+            // Replay all drawing actions from server authoritative history
             history.forEach(action => {
                 this.executeDrawAction(this.ctx, action);
             });
             this.saveState();
+        });
+        
+        // NEW: Update undo/redo button states from server
+        this.socket.on('undoRedoState', (state) => {
+            console.log(`🔘 Undo/Redo state update: canUndo=${state.canUndo}, canRedo=${state.canRedo}`);
+            if (this.undoBtn) {
+                this.undoBtn.disabled = !state.canUndo;
+            }
+            if (this.redoBtn) {
+                this.redoBtn.disabled = !state.canRedo;
+            }
         });
         
         this.socket.on('clearCanvas', () => {
@@ -291,6 +303,8 @@ class DrawingCanvasApp {
         }
         
         // Action buttons
+        if (this.undoBtn) this.undoBtn.addEventListener('click', () => this.undo());
+        if (this.redoBtn) this.redoBtn.addEventListener('click', () => this.redo());
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearCanvas());
         if (this.downloadBtn) this.downloadBtn.addEventListener('click', () => this.downloadImage());
         if (this.shareLinkBtn) this.shareLinkBtn.addEventListener('click', () => this.shareLink());
@@ -597,6 +611,22 @@ class DrawingCanvasApp {
             this.historyStack.shift();
         }
         this.historyStack.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
+    }
+    
+    // Global Undo - Request from server
+    undo() {
+        console.log('⏪ [REQUEST] Asking server to undo');
+        if (this.socket) {
+            this.socket.emit('requestUndo');
+        }
+    }
+    
+    // Global Redo - Request from server
+    redo() {
+        console.log('⏩ [REQUEST] Asking server to redo');
+        if (this.socket) {
+            this.socket.emit('requestRedo');
+        }
     }
     
     clearCanvas() {

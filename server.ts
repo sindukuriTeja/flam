@@ -26,9 +26,21 @@ app.get('/', (req, res) => {
 });
 
 // Store canvas state per room
+interface DrawAction {
+  tool: string;
+  color: string;
+  brushSize: number;
+  isFillEnabled?: boolean;
+  startPoint: { x: number; y: number };
+  endPoint: { x: number; y: number };
+  points?: { x: number; y: number }[];
+  timestamp: number;
+}
+
 interface RoomData {
   canvasState: any;
-  drawingHistory: any[];
+  drawingHistory: DrawAction[];  // All actions that are currently visible
+  redoHistory: DrawAction[];     // Actions that have been undone
   userCount: number;
 }
 
@@ -39,6 +51,7 @@ function getOrCreateRoom(roomId: string): RoomData {
     rooms.set(roomId, {
       canvasState: null,
       drawingHistory: [],
+      redoHistory: [],
       userCount: 0
     });
   }
@@ -102,12 +115,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('drawAction', (action) => {
+  socket.on('drawAction', (action: DrawAction) => {
     const room = getOrCreateRoom(currentRoom);
+    
+    // Add timestamp if not present
+    if (!action.timestamp) {
+      action.timestamp = Date.now();
+    }
+    
+    // Add to history and clear redo (new action invalidates redo)
     room.drawingHistory.push(action);
-    console.log(`Broadcasting drawAction to room ${currentRoom}, history size: ${room.drawingHistory.length}`);
-    // Broadcast to OTHER users in the same room (not sender - they already drew it)
+    room.redoHistory = [];
+    
+    console.log(`✏️ DrawAction in room ${currentRoom}: history=${room.drawingHistory.length}, redo=0`);
+    
+    // Broadcast to OTHER users in the same room
     socket.to(currentRoom).emit('drawAction', action);
+    
+    // Send undo/redo state to ALL users
+    io.to(currentRoom).emit('undoRedoState', {
+      canUndo: room.drawingHistory.length > 0,
+      canRedo: room.redoHistory.length > 0
+    });
   });
 
   socket.on('canvasState', (state) => {
@@ -118,13 +147,66 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('canvasState', state);
   });
   
+  // Global Undo - Server manages the authoritative history
+  socket.on('requestUndo', () => {
+    const room = getOrCreateRoom(currentRoom);
+    
+    if (room.drawingHistory.length > 0) {
+      // Move last action from history to redo
+      const lastAction = room.drawingHistory.pop()!;
+      room.redoHistory.push(lastAction);
+      
+      console.log(`⏪ UNDO in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoHistory.length}`);
+      
+      // Send the entire current history to ALL users to rebuild
+      io.to(currentRoom).emit('syncHistory', room.drawingHistory);
+      
+      // Update undo/redo button states for all users
+      io.to(currentRoom).emit('undoRedoState', {
+        canUndo: room.drawingHistory.length > 0,
+        canRedo: room.redoHistory.length > 0
+      });
+    }
+  });
+  
+  // Global Redo - Server manages the authoritative history
+  socket.on('requestRedo', () => {
+    const room = getOrCreateRoom(currentRoom);
+    
+    if (room.redoHistory.length > 0) {
+      // Move action from redo back to history
+      const redoAction = room.redoHistory.pop()!;
+      room.drawingHistory.push(redoAction);
+      
+      console.log(`⏩ REDO in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoHistory.length}`);
+      
+      // Send the entire current history to ALL users to rebuild
+      io.to(currentRoom).emit('syncHistory', room.drawingHistory);
+      
+      // Update undo/redo button states for all users
+      io.to(currentRoom).emit('undoRedoState', {
+        canUndo: room.drawingHistory.length > 0,
+        canRedo: room.redoHistory.length > 0
+      });
+    }
+  });
+
   socket.on('clearCanvas', () => {
     const room = getOrCreateRoom(currentRoom);
     room.canvasState = null;
     room.drawingHistory = [];
-    console.log(`Broadcasting clearCanvas to room ${currentRoom}`);
+    room.redoHistory = [];
+    
+    console.log(`🗑️ CLEAR in room ${currentRoom}`);
+    
     // Broadcast to OTHER users (sender already cleared locally)
     socket.to(currentRoom).emit('clearCanvas');
+    
+    // Update undo/redo button states for all users
+    io.to(currentRoom).emit('undoRedoState', {
+      canUndo: false,
+      canRedo: false
+    });
   });
 
   socket.on('disconnect', () => {
