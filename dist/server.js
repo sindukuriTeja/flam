@@ -57,6 +57,7 @@ app.get('/', (req, res) => {
 // Store canvas state
 let canvasState = null;
 let userCount = 0;
+let drawingHistory = []; // Store all drawing actions
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
     userCount++;
@@ -65,7 +66,13 @@ io.on('connection', (socket) => {
     if (canvasState) {
         socket.emit('canvasState', canvasState);
     }
+    // Send all drawing history to new user
+    if (drawingHistory.length > 0) {
+        socket.emit('syncHistory', drawingHistory);
+    }
     socket.on('drawAction', (action) => {
+        // Store the action in history
+        drawingHistory.push(action);
         // Broadcast the draw action to all other clients
         socket.broadcast.emit('drawAction', action);
     });
@@ -74,8 +81,17 @@ io.on('connection', (socket) => {
         // Broadcast the full canvas state to all clients
         socket.broadcast.emit('canvasState', state);
     });
+    socket.on('undoAction', () => {
+        // Broadcast undo to all clients
+        io.emit('undoAction');
+    });
+    socket.on('redoAction', () => {
+        // Broadcast redo to all clients
+        io.emit('redoAction');
+    });
     socket.on('clearCanvas', () => {
         canvasState = null;
+        drawingHistory = []; // Clear history
         socket.broadcast.emit('clearCanvas');
     });
     socket.on('disconnect', () => {

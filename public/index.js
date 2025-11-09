@@ -89,6 +89,7 @@ class DrawingCanvasApp {
         
         this.socket.on('drawAction', (action) => {
             this.executeDrawAction(this.ctx, action);
+            this.saveState();
         });
         
         this.socket.on('canvasState', (state) => {
@@ -96,6 +97,27 @@ class DrawingCanvasApp {
             this.historyStack = [state];
             this.redoStack = [];
             this.updateUndoRedoUI();
+        });
+        
+        this.socket.on('syncHistory', (history) => {
+            // Replay all drawing actions for new users
+            history.forEach(action => {
+                this.executeDrawAction(this.ctx, action);
+            });
+            this.saveState();
+        });
+        
+        this.socket.on('undoAction', () => {
+            if (this.historyStack.length > 1) {
+                this.historyStack.pop();
+                const prevState = this.historyStack[this.historyStack.length - 1];
+                this.ctx.putImageData(prevState, 0, 0);
+                this.updateUndoRedoUI();
+            }
+        });
+        
+        this.socket.on('redoAction', () => {
+            // Redo is local only for now
         });
         
         this.socket.on('clearCanvas', () => {
