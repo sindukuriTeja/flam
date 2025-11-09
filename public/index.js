@@ -173,17 +173,10 @@ class DrawingCanvasApp {
             console.log('Room info received:', info);
             if (this.roomIdDisplay) {
                 const displayText = info.roomId === 'default' 
-                    ? 'Private Drawing' 
-                    : `ID: ${info.roomId.substring(0, 8)}`;
+                    ? '🔒 Private' 
+                    : `🎨 ${info.roomId.substring(0, 8)}`;
                 this.roomIdDisplay.textContent = displayText;
                 this.roomIdDisplay.title = `Full Room ID: ${info.roomId}`;
-            }
-            
-            // Show welcome message
-            if (info.roomId === 'default') {
-                this.showNotification('🔒 Private mode - Only you can see this canvas. Create a room to collaborate!', 'info');
-            } else {
-                this.showNotification('🎉 Welcome to the room! Share the link to invite friends', 'info');
             }
         });
     }
@@ -617,6 +610,11 @@ class DrawingCanvasApp {
             const prevState = this.historyStack[this.historyStack.length - 1];
             this.ctx.putImageData(prevState, 0, 0);
             this.updateUndoRedoUI();
+            
+            // Broadcast undo to other users
+            if (this.socket) {
+                this.socket.emit('undoAction');
+            }
         }
     }
     
@@ -626,6 +624,11 @@ class DrawingCanvasApp {
             this.historyStack.push(nextState);
             this.ctx.putImageData(nextState, 0, 0);
             this.updateUndoRedoUI();
+            
+            // Broadcast redo to other users
+            if (this.socket) {
+                this.socket.emit('redoAction');
+            }
         }
     }
     

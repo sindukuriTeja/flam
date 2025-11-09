@@ -106,23 +106,27 @@ io.on('connection', (socket) => {
     const room = getOrCreateRoom(currentRoom);
     room.drawingHistory.push(action);
     console.log(`Broadcasting drawAction to room ${currentRoom}, history size: ${room.drawingHistory.length}`);
-    // Broadcast to ALL users in the same room (including sender for confirmation)
-    io.to(currentRoom).emit('drawAction', action);
+    // Broadcast to OTHER users in the same room (not sender - they already drew it)
+    socket.to(currentRoom).emit('drawAction', action);
   });
 
   socket.on('canvasState', (state) => {
     const room = getOrCreateRoom(currentRoom);
     room.canvasState = state;
     console.log(`Broadcasting canvasState to room ${currentRoom}`);
-    // Broadcast to ALL users in room
-    io.to(currentRoom).emit('canvasState', state);
+    // Broadcast to OTHER users (sender already has it)
+    socket.to(currentRoom).emit('canvasState', state);
   });
   
   socket.on('undoAction', () => {
+    console.log(`Broadcasting undoAction to room ${currentRoom}`);
+    // Broadcast to ALL users in room (everyone needs to undo)
     io.to(currentRoom).emit('undoAction');
   });
   
   socket.on('redoAction', () => {
+    console.log(`Broadcasting redoAction to room ${currentRoom}`);
+    // Broadcast to ALL users in room
     io.to(currentRoom).emit('redoAction');
   });
 
@@ -131,8 +135,8 @@ io.on('connection', (socket) => {
     room.canvasState = null;
     room.drawingHistory = [];
     console.log(`Broadcasting clearCanvas to room ${currentRoom}`);
-    // Broadcast to ALL users in room (including sender)
-    io.to(currentRoom).emit('clearCanvas');
+    // Broadcast to OTHER users (sender already cleared locally)
+    socket.to(currentRoom).emit('clearCanvas');
   });
 
   socket.on('disconnect', () => {
