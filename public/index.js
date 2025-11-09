@@ -694,17 +694,15 @@ class DrawingCanvasApp {
             case 'line':
             case 'triangle':
             case 'arrow':
-                if (this.snapshot) {
                 if (this.snapshot && this.ctx) {
-                try {
-                    this.ctx.putImageData(this.snapshot, 0, 0);
-                } catch (e) {
-                    console.warn('Failed to restore snapshot:', e);
+                    try {
+                        this.ctx.putImageData(this.snapshot, 0, 0);
+                    } catch (e) {
+                        console.warn('Failed to restore snapshot:', e);
+                    }
                 }
-            }
-                    this.drawShape(this.ctx, this.currentTool, this.startPoint, currentPoint,
-                                 this.color, this.brushSize, this.isFillEnabled);
-                }
+                this.drawShape(this.ctx, this.currentTool, this.startPoint, currentPoint,
+                             this.color, this.brushSize, this.isFillEnabled);
                 break;
         }
     }

@@ -280,8 +280,8 @@ io.on('connection', (socket) => {
     
     console.log(`✏️ ${currentUser?.name} drew ${action.tool} in room ${currentRoom}`);
     
-    // Broadcast to OTHER users in the same room with timestamp preserved
-    socket.to(currentRoom).emit('drawAction', action);
+    // Broadcast to ALL users in the same room (including sender)
+    io.to(currentRoom).emit('drawAction', action);
     
     // Send undo/redo state to ALL users
     io.to(currentRoom).emit('undoRedoState', {
@@ -309,8 +309,8 @@ io.on('connection', (socket) => {
     const room = getOrCreateRoom(currentRoom);
     room.canvasState = state;
     console.log(`Broadcasting canvasState to room ${currentRoom}`);
-    // Broadcast to OTHER users (sender already has it)
-    socket.to(currentRoom).emit('canvasState', state);
+    // Broadcast to ALL users (sender needs this too for sync)
+    io.to(currentRoom).emit('canvasState', state);
   });
   
   // Global Undo - Server manages the authoritative history
@@ -365,8 +365,8 @@ io.on('connection', (socket) => {
     
     console.log(`🗑️ CLEAR in room ${currentRoom}`);
     
-    // Broadcast to OTHER users (sender already cleared locally)
-    socket.to(currentRoom).emit('clearCanvas');
+    // Broadcast to ALL users (sender needs this too for sync)
+    io.to(currentRoom).emit('clearCanvas');
     
     // Update undo/redo button states for all users
     io.to(currentRoom).emit('undoRedoState', {
