@@ -115,10 +115,10 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('canvasState', (state) => {
-            console.log('Received canvasState sync');
+            console.log('🖼️ Received canvas state update from another user');
             this.ctx.putImageData(state, 0, 0);
-            this.historyStack = [state];
-            this.redoStack = [];
+            // Save to history so this user can undo/redo independently
+            this.saveState();
             this.updateUndoRedoUI();
         });
         
@@ -134,24 +134,16 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('undoAction', () => {
-            console.log('⏪ Received undo from another user - syncing...');
-            if (this.historyStack.length > 1) {
-                const currentState = this.historyStack.pop();
-                this.redoStack.push(currentState);
-                const prevState = this.historyStack[this.historyStack.length - 1];
-                this.ctx.putImageData(prevState, 0, 0);
-                this.updateUndoRedoUI();
-            }
+            console.log('⏪ Received undo from another user - applying change...');
+            // Don't sync undo/redo actions - each user has independent history control
+            // Just save the current state after any remote change
+            this.saveState();
         });
         
         this.socket.on('redoAction', () => {
-            console.log('⏩ Received redo from another user - syncing...');
-            if (this.redoStack.length > 0) {
-                const nextState = this.redoStack.pop();
-                this.historyStack.push(nextState);
-                this.ctx.putImageData(nextState, 0, 0);
-                this.updateUndoRedoUI();
-            }
+            console.log('⏩ Received redo from another user - applying change...');
+            // Don't sync undo/redo actions - each user has independent history control
+            this.saveState();
         });
         
         this.socket.on('clearCanvas', () => {
@@ -634,10 +626,10 @@ class DrawingCanvasApp {
             this.ctx.putImageData(prevState, 0, 0);
             this.updateUndoRedoUI();
             
-            console.log('⏪ Broadcasting undo to all users in room');
-            // Broadcast undo to other users
+            console.log('⏪ Performing undo - broadcasting result to room');
+            // Send the resulting canvas state to other users
             if (this.socket) {
-                this.socket.emit('undoAction');
+                this.socket.emit('canvasState', prevState);
             }
         }
     }
@@ -649,10 +641,10 @@ class DrawingCanvasApp {
             this.ctx.putImageData(nextState, 0, 0);
             this.updateUndoRedoUI();
             
-            console.log('⏩ Broadcasting redo to all users in room');
-            // Broadcast redo to other users
+            console.log('⏩ Performing redo - broadcasting result to room');
+            // Send the resulting canvas state to other users
             if (this.socket) {
-                this.socket.emit('redoAction');
+                this.socket.emit('canvasState', nextState);
             }
         }
     }
