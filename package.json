@@ -1,28 +1,30 @@
 {
-  "name": "collaborative-drawing-canvas",
-  "version": "1.0.0",
-  "description": "A real-time collaborative drawing canvas application",
-  "main": "server/server.js",
-  "scripts": {
-    "start": "node server/server.js",
-    "dev": "node server/server.js",
-    "build": "tsc"
-  },
-  "keywords": [
-    "canvas",
-    "drawing",
-    "collaborative",
-    "real-time",
-    "websocket"
-  ],
-  "author": "Collaborative Canvas Team",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18.x"
-  },
-  "dependencies": {
-    "express": "^5.1.0",
-    "socket.io": "^4.8.1"
+    "name": "collaborative-drawing-canvas",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+      "start": "node dist/server.js",
+      "dev": "npx tsc && node dist/server.js",
+      "build": "tsc",
+      "vercel-build": "tsc"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "engines": {
+      "node": ">=18.x"
+    },
+    "dependencies": {
+      "express": "^5.1.0",
+      "socket.io": "^4.8.1",
+      "typescript": "^5.9.3"
+    },
+    "devDependencies": {
+      "@types/express": "^5.0.5",
+      "@types/node": "^24.10.0",
+      "ts-node": "^10.9.2"
+    }
   }
-}
   
