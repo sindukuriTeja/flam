@@ -107,10 +107,11 @@ class DrawingCanvasApp {
         if (!this.socket) return;
         
         this.socket.on('drawAction', (action) => {
-            console.log('Received drawAction from server:', action);
-            // Only execute if it's from another user (check if we just sent this)
+            console.log('✏️ Received drawing from another user:', action.tool);
             // Execute the action to show other users' drawings
             this.executeDrawAction(this.ctx, action);
+            // Save state after remote drawing
+            this.saveState();
         });
         
         this.socket.on('canvasState', (state) => {
@@ -155,15 +156,20 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('userCount', (count) => {
-            console.log('User count updated:', count);
+            console.log('👥 User count updated:', count);
             if (this.userCountElement) {
-                this.userCountElement.textContent = `${count} user${count !== 1 ? 's' : ''} online`;
+                this.userCountElement.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                    </svg>
+                    <span>${count} user${count !== 1 ? 's' : ''} online</span>
+                `;
                 
                 // Show notification when users join/leave
                 if (this.lastUserCount !== undefined && count > this.lastUserCount) {
-                    this.showNotification('👋 A user joined the room!', 'info');
+                    this.showNotification(`👋 Someone joined! Now ${count} users drawing together`, 'info');
                 } else if (this.lastUserCount !== undefined && count < this.lastUserCount) {
-                    this.showNotification('👋 A user left the room', 'info');
+                    this.showNotification(`👋 Someone left. ${count} user${count !== 1 ? 's' : ''} remaining`, 'info');
                 }
                 this.lastUserCount = count;
             }
@@ -482,9 +488,9 @@ class DrawingCanvasApp {
         // Execute drawing locally
         this.executeDrawAction(this.ctx, action);
         
-        // Send to server (broadcast to others)
+        // Send to server (broadcast to others in the room)
         if (this.socket) {
-            console.log('Sending drawAction to server:', action);
+            console.log('📤 Broadcasting drawing to room:', action.tool);
             this.socket.emit('drawAction', action);
         }
         
