@@ -172,11 +172,19 @@ class DrawingCanvasApp {
         this.socket.on('roomInfo', (info) => {
             console.log('Room info received:', info);
             if (this.roomIdDisplay) {
-                const displayText = info.roomId === 'default' 
-                    ? '🔒 Private' 
-                    : `🎨 ${info.roomId.substring(0, 8)}`;
-                this.roomIdDisplay.textContent = displayText;
-                this.roomIdDisplay.title = `Full Room ID: ${info.roomId}`;
+                if (info.roomId === 'default') {
+                    this.roomIdDisplay.textContent = '🔒 Private';
+                    this.roomIdDisplay.title = 'Private mode - Create a room to collaborate';
+                } else {
+                    const fullUrl = `${window.location.origin}${window.location.pathname}?room=${info.roomId}`;
+                    this.roomIdDisplay.textContent = `🎨 ${info.roomId.substring(0, 10)}...`;
+                    this.roomIdDisplay.title = `Room Link: ${fullUrl}\nClick Share Link button to copy`;
+                    
+                    // Show welcome notification with the link
+                    setTimeout(() => {
+                        this.showNotification(`🎉 Room Active!\nShare this link: ${fullUrl}`, 'success');
+                    }, 500);
+                }
             }
         });
     }
@@ -664,7 +672,8 @@ class DrawingCanvasApp {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(roomUrl)
                 .then(() => {
-                    this.showNotification(`📤 ${roomName} link copied! Share with friends to draw together`, 'success');
+                    // Show success with the actual URL
+                    this.showNotification(`✅ Link copied! Share this to collaborate:\n${roomUrl}`, 'success');
                 })
                 .catch(() => {
                     this.showShareDialog(roomUrl, roomName);
@@ -687,13 +696,21 @@ Anyone with this link can join and draw together!`;
         const newRoomId = this.generateRoomId();
         const newUrl = `${window.location.origin}${window.location.pathname}?room=${newRoomId}`;
         
-        // Show notification with the new room info
-        this.showNotification('🎨 New room created! Share the link to collaborate', 'success');
+        // Copy the new room link to clipboard immediately
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(newUrl)
+                .then(() => {
+                    this.showNotification('🎨 New room created! Link copied to clipboard - Share it with friends!', 'success');
+                })
+                .catch(() => {
+                    this.showNotification('🎨 New room created! Loading...', 'success');
+                });
+        }
         
-        // Update URL and reload to start fresh
+        // Navigate to the new room after a short delay
         setTimeout(() => {
             window.location.href = newUrl;
-        }, 1000);
+        }, 1500);
     }
     
     getRoomIdFromUrl() {
@@ -714,26 +731,25 @@ Anyone with this link can join and draw together!`;
         const randomStr = Math.random().toString(36).substring(2, 8);
         return `${timestamp}${randomStr}`;
     }
-    showShareDialog(url) {
-        const message = `Share this link to collaborate:\n\n${url}`;
-        prompt(message, url);
-    }
     
     showNotification(message, type = 'info') {
         // Create notification element
         const notification = document.createElement('div');
-        notification.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-300 ${
-            type === 'success' ? 'bg-green-500' : 'bg-blue-500'
-        } text-white font-semibold`;
+        notification.className = `fixed top-24 left-1/2 transform -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl z-50 transition-opacity duration-300 max-w-2xl text-center ${
+            type === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+        } text-white font-bold text-sm border-2 border-white/30`;
+        
+        // Support multi-line messages
+        notification.style.whiteSpace = 'pre-wrap';
         notification.textContent = message;
         
         document.body.appendChild(notification);
         
-        // Auto remove after 3 seconds
+        // Auto remove after 4 seconds
         setTimeout(() => {
             notification.style.opacity = '0';
             setTimeout(() => notification.remove(), 300);
-        }, 3000);
+        }, 4000);
     }
     // UI update logic
     updateUI() {
