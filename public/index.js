@@ -95,46 +95,58 @@ class DrawingCanvasApp {
         const mainApp = document.getElementById('main-app');
         const mainFooter = document.getElementById('main-footer');
         
-        // Check if user name is already stored
+        // Check if elements exist
+        if (!nameEntryModal || !nameEntryForm || !userNameInput || !mainApp) {
+            console.error('Name entry elements not found in DOM');
+            // Fallback: show main app anyway
+            if (mainApp) mainApp.style.display = 'flex';
+            if (mainFooter) mainFooter.style.display = 'block';
+            return;
+        }
+        
+        // Check if user name is already stored in this session
         const storedName = sessionStorage.getItem('userName');
         
         if (storedName) {
             // User already entered name in this session
             this.enteredUserName = storedName;
-            if (nameEntryModal) nameEntryModal.style.display = 'none';
-            if (mainApp) mainApp.style.display = 'flex';
+            nameEntryModal.style.display = 'none';
+            mainApp.style.display = 'flex';
             if (mainFooter) mainFooter.style.display = 'block';
+            console.log('Using stored name:', storedName);
         } else {
             // Show name entry modal
-            if (nameEntryModal) {
-                nameEntryModal.style.display = 'flex';
-                // Focus on input
-                setTimeout(() => userNameInput?.focus(), 100);
-            }
+            nameEntryModal.style.display = 'flex';
+            mainApp.style.display = 'none';
+            if (mainFooter) mainFooter.style.display = 'none';
+            console.log('Showing name entry modal');
             
-            // Handle form submission
-            if (nameEntryForm) {
-                nameEntryForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const userName = userNameInput?.value.trim();
-                    
-                    if (userName && userName.length > 0) {
-                        this.enteredUserName = userName;
-                        sessionStorage.setItem('userName', userName);
-                        
-                        // Hide modal and show app
-                        if (nameEntryModal) nameEntryModal.style.display = 'none';
-                        if (mainApp) mainApp.style.display = 'flex';
-                        if (mainFooter) mainFooter.style.display = 'block';
-                        
-                        // Send user name to server if socket is ready
-                        if (this.socket && this.socket.connected) {
-                            this.socket.emit('setUserName', userName);
-                        }
-                    }
-                });
-            }
+            // Focus on input
+            setTimeout(() => userNameInput.focus(), 100);
         }
+        
+        // Handle form submission (always attach, even if name was stored)
+        nameEntryForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userName = userNameInput.value.trim();
+            
+            if (userName && userName.length > 0) {
+                this.enteredUserName = userName;
+                sessionStorage.setItem('userName', userName);
+                
+                console.log('User entered name:', userName);
+                
+                // Hide modal and show app
+                nameEntryModal.style.display = 'none';
+                mainApp.style.display = 'flex';
+                if (mainFooter) mainFooter.style.display = 'block';
+                
+                // Send user name to server if socket is ready
+                if (this.socket && this.socket.connected) {
+                    this.socket.emit('setUserName', userName);
+                }
+            }
+        });
     }
     
     initSocket() {
