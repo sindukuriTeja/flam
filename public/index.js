@@ -47,6 +47,7 @@ class DrawingCanvasApp {
         this.redoBtn = document.getElementById('redo-btn');
         this.clearBtn = document.getElementById('clear-btn');
         this.downloadBtn = document.getElementById('download-btn');
+        this.shareLinkBtn = document.getElementById('share-link-btn');
         this.userCountElement = document.getElementById('user-count');
         this.customColorPickerLabel = null;
         this.customColorPickerInput = null;
@@ -249,6 +250,7 @@ class DrawingCanvasApp {
         if (this.redoBtn) this.redoBtn.addEventListener('click', () => this.redo());
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearCanvas());
         if (this.downloadBtn) this.downloadBtn.addEventListener('click', () => this.downloadImage());
+        if (this.shareLinkBtn) this.shareLinkBtn.addEventListener('click', () => this.shareLink());
     }
     // Event Handlers
     getPointInCanvas(e) {
@@ -594,6 +596,45 @@ class DrawingCanvasApp {
         link.download = 'drawing.png';
         link.href = tempCanvas.toDataURL('image/png');
         link.click();
+    }
+    
+    shareLink() {
+        const currentUrl = window.location.href;
+        
+        // Try to copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(currentUrl)
+                .then(() => {
+                    this.showNotification('Link copied! Share it with others to collaborate', 'success');
+                })
+                .catch(() => {
+                    this.showShareDialog(currentUrl);
+                });
+        } else {
+            this.showShareDialog(currentUrl);
+        }
+    }
+    
+    showShareDialog(url) {
+        const message = `Share this link to collaborate:\n\n${url}`;
+        prompt(message, url);
+    }
+    
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+        } text-white font-semibold`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
     // UI update logic
     updateUI() {
