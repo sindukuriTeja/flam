@@ -172,7 +172,18 @@ class DrawingCanvasApp {
         this.socket.on('roomInfo', (info) => {
             console.log('Room info received:', info);
             if (this.roomIdDisplay) {
-                this.roomIdDisplay.textContent = `Room: ${info.roomId}`;
+                const displayText = info.roomId === 'default' 
+                    ? 'Private Drawing' 
+                    : `ID: ${info.roomId.substring(0, 8)}`;
+                this.roomIdDisplay.textContent = displayText;
+                this.roomIdDisplay.title = `Full Room ID: ${info.roomId}`;
+            }
+            
+            // Show welcome message
+            if (info.roomId === 'default') {
+                this.showNotification('🔒 Private mode - Only you can see this canvas. Create a room to collaborate!', 'info');
+            } else {
+                this.showNotification('🎉 Welcome to the room! Share the link to invite friends', 'info');
             }
         });
     }
@@ -644,27 +655,42 @@ class DrawingCanvasApp {
     
     shareLink() {
         const roomUrl = this.getRoomUrl();
+        const roomName = this.currentRoomId === 'default' ? 'Private Canvas' : `Room ${this.currentRoomId}`;
         
         // Try to copy to clipboard
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(roomUrl)
                 .then(() => {
-                    this.showNotification('🎨 Invite link copied! Share it to collaborate in real-time', 'success');
+                    this.showNotification(`📤 ${roomName} link copied! Share with friends to draw together`, 'success');
                 })
                 .catch(() => {
-                    this.showShareDialog(roomUrl);
+                    this.showShareDialog(roomUrl, roomName);
                 });
         } else {
-            this.showShareDialog(roomUrl);
+            this.showShareDialog(roomUrl, roomName);
         }
+    }
+    
+    showShareDialog(url, roomName) {
+        const message = `Share this link to collaborate in ${roomName}:
+
+${url}
+
+Anyone with this link can join and draw together!`;
+        prompt(message, url);
     }
     
     createNewRoom() {
         const newRoomId = this.generateRoomId();
         const newUrl = `${window.location.origin}${window.location.pathname}?room=${newRoomId}`;
         
-        // Update URL and reload
-        window.location.href = newUrl;
+        // Show notification with the new room info
+        this.showNotification('🎨 New room created! Share the link to collaborate', 'success');
+        
+        // Update URL and reload to start fresh
+        setTimeout(() => {
+            window.location.href = newUrl;
+        }, 1000);
     }
     
     getRoomIdFromUrl() {
@@ -680,9 +706,11 @@ class DrawingCanvasApp {
     }
     
     generateRoomId() {
-        return 'room_' + Math.random().toString(36).substring(2, 10);
+        // Generate a unique, easy-to-share room ID
+        const timestamp = Date.now().toString(36);
+        const randomStr = Math.random().toString(36).substring(2, 8);
+        return `${timestamp}${randomStr}`;
     }
-    
     showShareDialog(url) {
         const message = `Share this link to collaborate:\n\n${url}`;
         prompt(message, url);
