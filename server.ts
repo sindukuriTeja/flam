@@ -119,14 +119,14 @@ io.on('connection', (socket) => {
   });
   
   socket.on('undoAction', () => {
-    console.log(`Broadcasting undoAction to room ${currentRoom}`);
-    // Broadcast to ALL users in room (everyone needs to undo)
+    console.log(`Broadcasting undoAction to ALL users in room ${currentRoom}`);
+    // Broadcast to ALL users in room (including sender) to sync undo
     io.to(currentRoom).emit('undoAction');
   });
   
   socket.on('redoAction', () => {
-    console.log(`Broadcasting redoAction to room ${currentRoom}`);
-    // Broadcast to ALL users in room
+    console.log(`Broadcasting redoAction to ALL users in room ${currentRoom}`);
+    // Broadcast to ALL users in room (including sender) to sync redo
     io.to(currentRoom).emit('redoAction');
   });
 
