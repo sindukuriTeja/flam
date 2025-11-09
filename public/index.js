@@ -56,6 +56,7 @@ class DrawingCanvasApp {
         
         // Room management
         this.currentRoomId = this.getRoomIdFromUrl() || 'default';
+        this.lastUserCount = undefined;
         
         // Validate required elements
         if (!this.canvas || !this.ctx || !this.selectionCanvas || !this.selectionCtx) {
@@ -73,11 +74,17 @@ class DrawingCanvasApp {
                 this.socket = io();
                 console.log('Socket.IO connected successfully');
                 
-                // Join room after connection
+                // Join room immediately after connection
                 this.socket.on('connect', () => {
+                    console.log('Socket connected, joining room:', this.currentRoomId);
                     this.socket.emit('joinRoom', this.currentRoomId);
-                    console.log('Joined room:', this.currentRoomId);
                 });
+                
+                // Also join immediately if already connected
+                if (this.socket.connected) {
+                    console.log('Socket already connected, joining room:', this.currentRoomId);
+                    this.socket.emit('joinRoom', this.currentRoomId);
+                }
             } else {
                 console.warn('Socket.IO library not loaded - running in offline mode');
             }
@@ -100,11 +107,13 @@ class DrawingCanvasApp {
         if (!this.socket) return;
         
         this.socket.on('drawAction', (action) => {
+            console.log('Received drawAction from other user:', action);
             this.executeDrawAction(this.ctx, action);
             this.saveState();
         });
         
         this.socket.on('canvasState', (state) => {
+            console.log('Received canvasState sync');
             this.ctx.putImageData(state, 0, 0);
             this.historyStack = [state];
             this.redoStack = [];
@@ -112,6 +121,9 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('syncHistory', (history) => {
+            console.log('Syncing drawing history:', history.length, 'actions');
+            // Clear canvas first
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             // Replay all drawing actions for new users
             history.forEach(action => {
                 this.executeDrawAction(this.ctx, action);
@@ -120,6 +132,7 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('undoAction', () => {
+            console.log('Received undo from other user');
             if (this.historyStack.length > 1) {
                 this.historyStack.pop();
                 const prevState = this.historyStack[this.historyStack.length - 1];
@@ -133,6 +146,7 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('clearCanvas', () => {
+            console.log('Received clear canvas from other user');
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.historyStack = [];
             this.saveState();
@@ -140,12 +154,22 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('userCount', (count) => {
+            console.log('User count updated:', count);
             if (this.userCountElement) {
                 this.userCountElement.textContent = `${count} user${count !== 1 ? 's' : ''} online`;
+                
+                // Show notification when users join/leave
+                if (this.lastUserCount !== undefined && count > this.lastUserCount) {
+                    this.showNotification('👋 A user joined the room!', 'info');
+                } else if (this.lastUserCount !== undefined && count < this.lastUserCount) {
+                    this.showNotification('👋 A user left the room', 'info');
+                }
+                this.lastUserCount = count;
             }
         });
         
         this.socket.on('roomInfo', (info) => {
+            console.log('Room info received:', info);
             if (this.roomIdDisplay) {
                 this.roomIdDisplay.textContent = `Room: ${info.roomId}`;
             }
@@ -445,8 +469,9 @@ class DrawingCanvasApp {
         // Execute drawing locally
         this.executeDrawAction(this.ctx, action);
         
-        // Send to server
+        // Send to server (broadcast to others)
         if (this.socket) {
+            console.log('Sending drawAction to server:', action);
             this.socket.emit('drawAction', action);
         }
         

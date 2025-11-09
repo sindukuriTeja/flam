@@ -68,19 +68,37 @@ function getOrCreateRoom(roomId) {
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
     let currentRoom = 'default';
+    // Automatically join default room on connection
+    socket.join(currentRoom);
+    const defaultRoom = getOrCreateRoom(currentRoom);
+    defaultRoom.userCount++;
+    // Immediately send user count to all users in default room
+    io.to(currentRoom).emit('userCount', defaultRoom.userCount);
+    io.to(currentRoom).emit('roomInfo', { roomId: currentRoom });
+    console.log(`User ${socket.id} auto-joined room: ${currentRoom}, users: ${defaultRoom.userCount}`);
+    // Send current state to new user
+    if (defaultRoom.canvasState) {
+        socket.emit('canvasState', defaultRoom.canvasState);
+    }
+    if (defaultRoom.drawingHistory.length > 0) {
+        socket.emit('syncHistory', defaultRoom.drawingHistory);
+    }
     // Handle room joining
     socket.on('joinRoom', (roomId) => {
+        if (roomId === currentRoom)
+            return; // Already in this room
         // Leave previous room
         socket.leave(currentRoom);
         const prevRoom = getOrCreateRoom(currentRoom);
-        prevRoom.userCount--;
+        prevRoom.userCount = Math.max(0, prevRoom.userCount - 1);
         io.to(currentRoom).emit('userCount', prevRoom.userCount);
+        console.log(`User ${socket.id} left room ${currentRoom}, remaining: ${prevRoom.userCount}`);
         // Join new room
         currentRoom = roomId || 'default';
         socket.join(currentRoom);
         const room = getOrCreateRoom(currentRoom);
         room.userCount++;
-        console.log(`User ${socket.id} joined room: ${currentRoom}`);
+        console.log(`User ${socket.id} joined room: ${currentRoom}, users: ${room.userCount}`);
         // Send room info to all users in the room
         io.to(currentRoom).emit('userCount', room.userCount);
         io.to(currentRoom).emit('roomInfo', { roomId: currentRoom });
@@ -119,9 +137,10 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('A user disconnected:', socket.id);
         const room = getOrCreateRoom(currentRoom);
-        room.userCount--;
+        room.userCount = Math.max(0, room.userCount - 1);
+        console.log(`Room ${currentRoom} now has ${room.userCount} users`);
         io.to(currentRoom).emit('userCount', room.userCount);
-        // Clean up empty rooms
+        // Clean up empty rooms (except default)
         if (room.userCount === 0 && currentRoom !== 'default') {
             rooms.delete(currentRoom);
             console.log(`Room ${currentRoom} deleted (empty)`);
