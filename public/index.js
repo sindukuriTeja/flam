@@ -43,8 +43,6 @@ class DrawingCanvasApp {
         this.brushSizeValue = document.getElementById('brush-size-value');
         this.fillShapeContainer = document.getElementById('fill-shape-container');
         this.fillShapeCheckbox = document.getElementById('fill-shape');
-        this.undoBtn = document.getElementById('undo-btn');
-        this.redoBtn = document.getElementById('redo-btn');
         this.clearBtn = document.getElementById('clear-btn');
         this.downloadBtn = document.getElementById('download-btn');
         this.shareLinkBtn = document.getElementById('share-link-btn');
@@ -133,31 +131,12 @@ class DrawingCanvasApp {
             this.saveState();
         });
         
-        this.socket.on('clearRedoStack', () => {
-            console.log('🔄 Clearing redo stack due to new action');
-            this.redoStack = [];
-            this.updateUndoRedoUI();
-        });
-        
-        this.socket.on('rebuildCanvas', (history) => {
-            console.log(`🔨 Rebuilding canvas from ${history.length} actions`);
-            // Clear canvas
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            // Rebuild from history
-            history.forEach(action => {
-                this.executeDrawAction(this.ctx, action);
-            });
-            // Save state
-            this.saveState();
-        });
-        
         this.socket.on('clearCanvas', () => {
             console.log('🗑️ Received clear canvas from another user - clearing...');
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.historyStack = [];
             this.redoStack = [];
             this.saveState();
-            this.updateUndoRedoUI();
             this.showNotification('🗑️ Someone cleared the canvas', 'info');
         });
         
@@ -312,8 +291,6 @@ class DrawingCanvasApp {
         }
         
         // Action buttons
-        if (this.undoBtn) this.undoBtn.addEventListener('click', () => this.undo());
-        if (this.redoBtn) this.redoBtn.addEventListener('click', () => this.redo());
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearCanvas());
         if (this.downloadBtn) this.downloadBtn.addEventListener('click', () => this.downloadImage());
         if (this.shareLinkBtn) this.shareLinkBtn.addEventListener('click', () => this.shareLink());
@@ -620,23 +597,6 @@ class DrawingCanvasApp {
             this.historyStack.shift();
         }
         this.historyStack.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
-        this.updateUndoRedoUI();
-    }
-    
-    undo() {
-        console.log('⏪ [YOU] Requesting undo from server');
-        // Request undo from server - server will manage history and rebuild for all
-        if (this.socket) {
-            this.socket.emit('undoAction');
-        }
-    }
-    
-    redo() {
-        console.log('⏩ [YOU] Requesting redo from server');
-        // Request redo from server - server will manage history and rebuild for all
-        if (this.socket) {
-            this.socket.emit('redoAction');
-        }
     }
     
     clearCanvas() {
@@ -644,7 +604,6 @@ class DrawingCanvasApp {
         this.historyStack = [];
         this.redoStack = [];
         this.saveState();
-        this.updateUndoRedoUI();
         
         // Broadcast clear to other users in the room
         if (this.socket) {
@@ -808,16 +767,7 @@ Anyone with this link can join and draw together!`;
             }
         }
         
-        this.updateUndoRedoUI();
-    }
-    
-    updateUndoRedoUI() {
-        if (this.undoBtn) {
-            this.undoBtn.disabled = this.historyStack.length <= 1;
-        }
-        if (this.redoBtn) {
-            this.redoBtn.disabled = this.redoStack.length === 0;
-        }
+        this.updateUI();
     }
 }
 // Initialize app when DOM is ready

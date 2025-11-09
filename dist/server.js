@@ -60,8 +60,6 @@ function getOrCreateRoom(roomId) {
         rooms.set(roomId, {
             canvasState: null,
             drawingHistory: [],
-            undoStack: [],
-            redoStack: [],
             userCount: 0
         });
     }
@@ -116,13 +114,9 @@ io.on('connection', (socket) => {
     socket.on('drawAction', (action) => {
         const room = getOrCreateRoom(currentRoom);
         room.drawingHistory.push(action);
-        // Clear redo stack when new action is added
-        room.redoStack = [];
         console.log(`Broadcasting drawAction to room ${currentRoom}, history size: ${room.drawingHistory.length}`);
         // Broadcast to OTHER users in the same room (not sender - they already drew it)
         socket.to(currentRoom).emit('drawAction', action);
-        // Broadcast to clear redo stack for all users
-        socket.to(currentRoom).emit('clearRedoStack');
     });
     socket.on('canvasState', (state) => {
         const room = getOrCreateRoom(currentRoom);
@@ -131,32 +125,10 @@ io.on('connection', (socket) => {
         // Broadcast to OTHER users (sender already has it)
         socket.to(currentRoom).emit('canvasState', state);
     });
-    socket.on('undoAction', () => {
-        const room = getOrCreateRoom(currentRoom);
-        if (room.drawingHistory.length > 0) {
-            const lastAction = room.drawingHistory.pop();
-            room.redoStack.push(lastAction);
-            console.log(`Undo in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoStack.length}`);
-            // Broadcast to ALL users to rebuild canvas from history
-            io.to(currentRoom).emit('rebuildCanvas', room.drawingHistory);
-        }
-    });
-    socket.on('redoAction', () => {
-        const room = getOrCreateRoom(currentRoom);
-        if (room.redoStack.length > 0) {
-            const action = room.redoStack.pop();
-            room.drawingHistory.push(action);
-            console.log(`Redo in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoStack.length}`);
-            // Broadcast to ALL users to rebuild canvas from history
-            io.to(currentRoom).emit('rebuildCanvas', room.drawingHistory);
-        }
-    });
     socket.on('clearCanvas', () => {
         const room = getOrCreateRoom(currentRoom);
         room.canvasState = null;
         room.drawingHistory = [];
-        room.undoStack = [];
-        room.redoStack = [];
         console.log(`Broadcasting clearCanvas to room ${currentRoom}`);
         // Broadcast to OTHER users (sender already cleared locally)
         socket.to(currentRoom).emit('clearCanvas');
