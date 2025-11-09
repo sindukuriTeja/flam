@@ -48,6 +48,19 @@
         <!-- Toolbar -->
         <div id="toolbar" class="bg-gradient-to-b from-slate-50 to-white p-5 flex flex-col items-center justify-start gap-6 border-r-2 border-purple-100 overflow-y-auto w-72 shadow-xl">
 
+          <!-- Online Users List -->
+          <div class="w-full bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 shadow-md">
+            <h3 class="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-3 tracking-wider uppercase flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              Online Users
+            </h3>
+            <div id="users-list" class="space-y-2 max-h-32 overflow-y-auto">
+              <!-- Users will be dynamically added here -->
+            </div>
+          </div>
+
           <!-- Tools -->
           <div class="w-full">
             <h3 class="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-4 tracking-wider uppercase">Drawing Tools</h3>
@@ -223,6 +236,7 @@
         <div class="relative flex-grow bg-canvas-bg h-full">
             <canvas id="drawing-canvas" class="absolute top-0 left-0"></canvas>
             <canvas id="selection-canvas" class="absolute top-0 left-0 pointer-events-none"></canvas>
+            <canvas id="cursor-canvas" class="absolute top-0 left-0 pointer-events-none"></canvas>
         </div>
       </div>
     </div>

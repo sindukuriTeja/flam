@@ -37,6 +37,8 @@ class DrawingCanvasApp {
         this.ctx = this.canvas?.getContext('2d');
         this.selectionCanvas = document.getElementById('selection-canvas');
         this.selectionCtx = this.selectionCanvas?.getContext('2d');
+        this.cursorCanvas = document.getElementById('cursor-canvas');
+        this.cursorCtx = this.cursorCanvas?.getContext('2d');
         this.toolContainer = document.getElementById('tool-container');
         this.colorPalette = document.getElementById('color-palette');
         this.brushSizeSlider = document.getElementById('brush-size');
@@ -51,12 +53,18 @@ class DrawingCanvasApp {
         this.createRoomBtn = document.getElementById('create-room-btn');
         this.roomIdDisplay = document.getElementById('room-id-display');
         this.userCountElement = document.getElementById('user-count');
+        this.usersListElement = document.getElementById('users-list');
         this.customColorPickerLabel = null;
         this.customColorPickerInput = null;
         
         // Room management
         this.currentRoomId = this.getRoomIdFromUrl() || 'default';
         this.lastUserCount = undefined;
+        
+        // User management
+        this.currentUser = null;  // { id, name, color }
+        this.onlineUsers = new Map();  // Map of userId -> userInfo
+        this.remoteCursors = new Map();  // Map of userId -> cursor position
         
         // Conflict resolution: Pending actions queue with timestamps
         this.pendingActions = [];
@@ -65,7 +73,7 @@ class DrawingCanvasApp {
         this.localActionCounter = 0;
         
         // Validate required elements
-        if (!this.canvas || !this.ctx || !this.selectionCanvas || !this.selectionCtx) {
+        if (!this.canvas || !this.ctx || !this.selectionCanvas || !this.selectionCtx || !this.cursorCanvas || !this.cursorCtx) {
             console.error('Canvas elements not found');
             return;
         }
@@ -163,6 +171,29 @@ class DrawingCanvasApp {
     setupSocketListeners() {
         if (!this.socket) return;
         
+        // Receive own user info
+        this.socket.on('userInfo', (userInfo) => {
+            console.log('👤 Received user info:', userInfo);
+            this.currentUser = userInfo;
+            this.showNotification(`Welcome! You are ${userInfo.name}`, 'success');
+        });
+        
+        // Receive list of all online users
+        this.socket.on('usersList', (users) => {
+            console.log('👥 Users list updated:', users);
+            this.onlineUsers.clear();
+            users.forEach(user => {
+                this.onlineUsers.set(user.id, user);
+            });
+            this.updateUsersList();
+        });
+        
+        // Receive cursor movements from other users
+        this.socket.on('cursorMove', (cursorData) => {
+            this.remoteCursors.set(cursorData.userId, cursorData);
+            this.drawRemoteCursors();
+        });
+        
         this.socket.on('drawAction', (action) => {
             console.log(`✏️ [CONFLICT-SAFE] Received action from another user: ${action.tool} (timestamp: ${action.timestamp})`);
             // Add to pending queue for ordered processing
@@ -246,6 +277,79 @@ class DrawingCanvasApp {
             }
         });
     }
+    // User Management
+    updateUsersList() {
+        if (!this.usersListElement) return;
+        
+        this.usersListElement.innerHTML = '';
+        
+        this.onlineUsers.forEach((user, userId) => {
+            const isCurrentUser = userId === this.currentUser?.id;
+            const userElement = document.createElement('div');
+            userElement.className = `flex items-center gap-2 p-2 rounded-lg ${isCurrentUser ? 'bg-purple-100 border-2 border-purple-300' : 'bg-white/50'}`;
+            userElement.innerHTML = `
+                <div class="w-3 h-3 rounded-full" style="background-color: ${user.color};"></div>
+                <span class="text-xs font-semibold text-gray-700">${user.name}${isCurrentUser ? ' (You)' : ''}</span>
+            `;
+            this.usersListElement.appendChild(userElement);
+        });
+    }
+    
+    sendCursorPosition(e) {
+        if (!this.socket || !this.currentUser) return;
+        
+        const point = this.getPointInCanvas(e);
+        // Throttle cursor updates to reduce network load
+        if (!this.lastCursorSent || Date.now() - this.lastCursorSent > 50) {
+            this.socket.emit('cursorMove', { x: point.x, y: point.y });
+            this.lastCursorSent = Date.now();
+        }
+    }
+    
+    drawRemoteCursors() {
+        if (!this.cursorCtx) return;
+        
+        // Clear cursor canvas
+        this.cursorCtx.clearRect(0, 0, this.cursorCanvas.width, this.cursorCanvas.height);
+        
+        // Draw each remote user's cursor
+        this.remoteCursors.forEach((cursor, userId) => {
+            if (userId === this.currentUser?.id) return; // Don't draw own cursor
+            
+            const x = cursor.x;
+            const y = cursor.y;
+            
+            // Draw cursor pointer
+            this.cursorCtx.save();
+            this.cursorCtx.fillStyle = cursor.color;
+            this.cursorCtx.strokeStyle = '#ffffff';
+            this.cursorCtx.lineWidth = 2;
+            
+            // Cursor shape (arrow)
+            this.cursorCtx.beginPath();
+            this.cursorCtx.moveTo(x, y);
+            this.cursorCtx.lineTo(x, y + 16);
+            this.cursorCtx.lineTo(x + 4, y + 12);
+            this.cursorCtx.lineTo(x + 8, y + 20);
+            this.cursorCtx.lineTo(x + 10, y + 18);
+            this.cursorCtx.lineTo(x + 7, y + 11);
+            this.cursorCtx.lineTo(x + 12, y + 10);
+            this.cursorCtx.closePath();
+            this.cursorCtx.fill();
+            this.cursorCtx.stroke();
+            
+            // Draw user name label
+            this.cursorCtx.font = 'bold 11px sans-serif';
+            this.cursorCtx.fillStyle = cursor.color;
+            this.cursorCtx.strokeStyle = '#ffffff';
+            this.cursorCtx.lineWidth = 3;
+            this.cursorCtx.strokeText(cursor.userName, x + 14, y + 10);
+            this.cursorCtx.fillText(cursor.userName, x + 14, y + 10);
+            
+            this.cursorCtx.restore();
+        });
+    }
+    
     setupCanvases() {
         const parent = this.canvas.parentElement;
         const rect = parent.getBoundingClientRect();
@@ -255,11 +359,15 @@ class DrawingCanvasApp {
         this.canvas.height = rect.height;
         this.selectionCanvas.width = rect.width;
         this.selectionCanvas.height = rect.height;
+        this.cursorCanvas.width = rect.width;
+        this.cursorCanvas.height = rect.height;
         
         this.canvas.style.width = rect.width + 'px';
         this.canvas.style.height = rect.height + 'px';
         this.selectionCanvas.style.width = rect.width + 'px';
         this.selectionCanvas.style.height = rect.height + 'px';
+        this.cursorCanvas.style.width = rect.width + 'px';
+        this.cursorCanvas.style.height = rect.height + 'px';
         
         // Handle window resize
         window.addEventListener('resize', () => {
@@ -316,7 +424,10 @@ class DrawingCanvasApp {
     setupEventListeners() {
         // Canvas mouse/touch events
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-        this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.draw(e);
+            this.sendCursorPosition(e);
+        });
         this.canvas.addEventListener('mouseup', (e) => this.stopDrawing(e));
         this.canvas.addEventListener('mouseleave', (e) => this.stopDrawing(e));
         
