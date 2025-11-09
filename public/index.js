@@ -134,9 +134,10 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('undoAction', () => {
-            console.log('Received undo from other user');
+            console.log('⏪ Received undo from another user - syncing...');
             if (this.historyStack.length > 1) {
-                this.historyStack.pop();
+                const currentState = this.historyStack.pop();
+                this.redoStack.push(currentState);
                 const prevState = this.historyStack[this.historyStack.length - 1];
                 this.ctx.putImageData(prevState, 0, 0);
                 this.updateUndoRedoUI();
@@ -144,15 +145,23 @@ class DrawingCanvasApp {
         });
         
         this.socket.on('redoAction', () => {
-            // Redo is local only for now
+            console.log('⏩ Received redo from another user - syncing...');
+            if (this.redoStack.length > 0) {
+                const nextState = this.redoStack.pop();
+                this.historyStack.push(nextState);
+                this.ctx.putImageData(nextState, 0, 0);
+                this.updateUndoRedoUI();
+            }
         });
         
         this.socket.on('clearCanvas', () => {
-            console.log('Received clear canvas from server');
+            console.log('🗑️ Received clear canvas from another user - clearing...');
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.historyStack = [];
+            this.redoStack = [];
             this.saveState();
             this.updateUndoRedoUI();
+            this.showNotification('🗑️ Someone cleared the canvas', 'info');
         });
         
         this.socket.on('userCount', (count) => {
@@ -625,6 +634,7 @@ class DrawingCanvasApp {
             this.ctx.putImageData(prevState, 0, 0);
             this.updateUndoRedoUI();
             
+            console.log('⏪ Broadcasting undo to all users in room');
             // Broadcast undo to other users
             if (this.socket) {
                 this.socket.emit('undoAction');
@@ -639,6 +649,7 @@ class DrawingCanvasApp {
             this.ctx.putImageData(nextState, 0, 0);
             this.updateUndoRedoUI();
             
+            console.log('⏩ Broadcasting redo to all users in room');
             // Broadcast redo to other users
             if (this.socket) {
                 this.socket.emit('redoAction');
@@ -648,10 +659,16 @@ class DrawingCanvasApp {
     
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.historyStack = [];
+        this.redoStack = [];
+        this.saveState();
+        this.updateUndoRedoUI();
+        
+        // Broadcast clear to other users in the room
         if (this.socket) {
+            console.log('🗑️ Broadcasting clear canvas to room');
             this.socket.emit('clearCanvas');
         }
-        this.saveState();
     }
     
     downloadImage() {
