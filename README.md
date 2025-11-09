@@ -4,7 +4,7 @@ A real-time collaborative drawing application where multiple users can draw toge
 
 ![Collaborative Drawing Canvas](https://img.shields.io/badge/Real--Time-Collaboration-blue) ![Node.js](https://img.shields.io/badge/Node.js-18+-green) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue) ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-black)
 
-## ✨ Features
+## Features
 
 - **Real-time Collaboration**: Draw simultaneously with others in the same room
 - **Multiple Drawing Tools**: Brush, eraser, shapes (rectangle, circle, triangle, line, arrow), selection tool
@@ -17,7 +17,7 @@ A real-time collaborative drawing application where multiple users can draw toge
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Export Functionality**: Download your artwork as PNG
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -27,8 +27,7 @@ A real-time collaborative drawing application where multiple users can draw toge
 ### Installation
 
 1. Clone the repository:
-```bash
-git clone <repository-url>
+```
 cd collaborative-drawing-canvas
 ```
 
@@ -56,7 +55,7 @@ For development with auto-restart:
 npm run dev
 ```
 
-## 🎨 Usage
+## Usage
 
 1. **Enter Your Name**: On first visit, enter your display name
 2. **Start Drawing**: Use the toolbar to select tools and colors
@@ -78,7 +77,7 @@ npm run dev
 - `Ctrl+Z`: Undo (server-managed)
 - `Ctrl+Y`: Redo (server-managed)
 
-## 🏗️ Architecture
+## Architecture
 
 This application uses a client-server architecture with real-time WebSocket communication:
 
@@ -90,14 +89,7 @@ This application uses a client-server architecture with real-time WebSocket comm
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
 
-## 🚀 Deployment
-
-### Vercel (Recommended)
-
-1. Connect your GitHub repository to Vercel
-2. Vercel will automatically detect the configuration in `vercel.json`
-3. Deploy with zero configuration
-
+## Deployment
 ### Render
 
 1. Connect your GitHub repository to Render
@@ -115,7 +107,7 @@ npm start
 
 The server will run on the port specified by the `PORT` environment variable (default: 3002).
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Backend**: Node.js, Express, Socket.IO, TypeScript
 - **Frontend**: HTML5, CSS3, JavaScript, Tailwind CSS
@@ -124,7 +116,7 @@ The server will run on the port specified by the `PORT` environment variable (de
 - **Deployment**: Vercel, Render
 - **Package Management**: npm
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 collaborative-drawing-canvas/
@@ -142,7 +134,7 @@ collaborative-drawing-canvas/
 └── README.md              # This file
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
@@ -151,17 +143,17 @@ collaborative-drawing-canvas/
 5. Push to the branch: `git push origin feature-name`
 6. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with [Socket.IO](https://socket.io/) for real-time communication
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
 - Icons from [Heroicons](https://heroicons.com/)
 
-## 📞 Support
+## Support
 
 If you encounter any issues or have questions:
 
@@ -170,5 +162,3 @@ If you encounter any issues or have questions:
 3. Include your Node.js version and browser information
 
 ---
-
-**Happy Drawing! 🎨** Share your creations and collaborate with friends in real-time.

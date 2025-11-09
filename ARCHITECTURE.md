@@ -94,11 +94,11 @@ Each room maintains:
 
 ```typescript
 interface RoomData {
-  canvasState: any;           // Current canvas image data
-  drawingHistory: DrawAction[]; // Ordered list of drawing actions
-  redoHistory: DrawAction[];    // Redo stack
-  userCount: number;          // Active users in room
-  users: Map<string, UserInfo>; // User information
+  canvasState: any;          
+  drawingHistory: DrawAction[]; 
+  redoHistory: DrawAction[];    
+  userCount: number;          
+  users: Map<string, UserInfo>; 
 }
 ```
 
@@ -113,28 +113,28 @@ interface RoomData {
 #### DrawAction Interface
 ```typescript
 interface DrawAction {
-  tool: string;              // 'brush', 'eraser', 'rectangle', etc.
-  color: string;             // Hex color code
-  brushSize: number;         // Tool size
-  isFillEnabled?: boolean;   // For shapes
+  tool: string;              
+  color: string;             
+  brushSize: number;         
+  isFillEnabled?: boolean;   
   startPoint: { x: number; y: number };
   endPoint: { x: number; y: number };
-  points?: { x: number; y: number }[]; // For brush strokes
-  timestamp: number;         // For conflict resolution
-  userId?: string;           // User who made the action
-  userName?: string;         // Display name
+  points?: { x: number; y: number }[]; 
+  timestamp: number;         
+  userId?: string;          
+  userName?: string;         
 }
 ```
 
 #### UserInfo Interface
 ```typescript
 interface UserInfo {
-  id: string;                // Unique user ID
-  name: string;              // Display name
-  color: string;             // Assigned color
-  socketId: string;          // Socket.IO socket ID
-  joinedAt: number;          // Join timestamp
-  lastActivity: number;      // Last activity timestamp
+  id: string;                
+  name: string;              
+  color: string;             
+  socketId: string;         
+  joinedAt: number;          
+  lastActivity: number;      
 }
 ```
 
