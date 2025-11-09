@@ -123,6 +123,30 @@ io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
   let currentRoom = 'default';
   let currentUser: UserInfo | null = null;
+  let customUserName: string | null = null;
+  
+  // Handle custom user name
+  socket.on('setUserName', (userName: string) => {
+    if (userName && userName.trim().length > 0) {
+      customUserName = userName.trim().substring(0, 20); // Limit to 20 chars
+      console.log(`🏷️ User ${socket.id} set custom name: ${customUserName}`);
+      
+      // Update current user if already created
+      if (currentUser) {
+        currentUser.name = customUserName;
+        const room = getOrCreateRoom(currentRoom);
+        room.users.set(currentUser.id, currentUser);
+        
+        // Broadcast updated user info
+        socket.emit('userInfo', {
+          id: currentUser.id,
+          name: currentUser.name,
+          color: currentUser.color
+        });
+        io.to(currentRoom).emit('usersList', getUsersList(room));
+      }
+    }
+  });
   
   // Automatically join default room on connection
   socket.join(currentRoom);
@@ -130,7 +154,7 @@ io.on('connection', (socket) => {
   
   // Create user info with unique color and name
   const userId = socket.id;
-  const userName = generateUserName(defaultRoom);
+  const userName = customUserName || generateUserName(defaultRoom);
   const userColor = assignUserColor(defaultRoom);
   
   currentUser = {
@@ -190,7 +214,8 @@ io.on('connection', (socket) => {
     // Update user color for new room
     if (currentUser) {
       currentUser.color = assignUserColor(room);
-      currentUser.name = generateUserName(room);
+      // Use custom name if available, otherwise generate new name
+      currentUser.name = customUserName || generateUserName(room);
       currentUser.joinedAt = Date.now();
       room.users.set(currentUser.id, currentUser);
     }

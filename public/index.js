@@ -7,6 +7,12 @@ const PRESET_COLORS = [
 const MAX_HISTORY_SIZE = 50;
 class DrawingCanvasApp {
     constructor() {
+        // User name from entry modal
+        this.enteredUserName = null;
+        
+        // Check if name entry modal should be shown
+        this.handleNameEntry();
+        
         // Drawing state
         this.currentTool = 'brush';
         this.color = '#000000';
@@ -82,6 +88,55 @@ class DrawingCanvasApp {
         this.init();
     }
     
+    handleNameEntry() {
+        const nameEntryModal = document.getElementById('name-entry-modal');
+        const nameEntryForm = document.getElementById('name-entry-form');
+        const userNameInput = document.getElementById('user-name-input');
+        const mainApp = document.getElementById('main-app');
+        const mainFooter = document.getElementById('main-footer');
+        
+        // Check if user name is already stored
+        const storedName = sessionStorage.getItem('userName');
+        
+        if (storedName) {
+            // User already entered name in this session
+            this.enteredUserName = storedName;
+            if (nameEntryModal) nameEntryModal.style.display = 'none';
+            if (mainApp) mainApp.style.display = 'flex';
+            if (mainFooter) mainFooter.style.display = 'block';
+        } else {
+            // Show name entry modal
+            if (nameEntryModal) {
+                nameEntryModal.style.display = 'flex';
+                // Focus on input
+                setTimeout(() => userNameInput?.focus(), 100);
+            }
+            
+            // Handle form submission
+            if (nameEntryForm) {
+                nameEntryForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const userName = userNameInput?.value.trim();
+                    
+                    if (userName && userName.length > 0) {
+                        this.enteredUserName = userName;
+                        sessionStorage.setItem('userName', userName);
+                        
+                        // Hide modal and show app
+                        if (nameEntryModal) nameEntryModal.style.display = 'none';
+                        if (mainApp) mainApp.style.display = 'flex';
+                        if (mainFooter) mainFooter.style.display = 'block';
+                        
+                        // Send user name to server if socket is ready
+                        if (this.socket && this.socket.connected) {
+                            this.socket.emit('setUserName', userName);
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
     initSocket() {
         try {
             if (typeof io !== 'undefined') {
@@ -91,12 +146,19 @@ class DrawingCanvasApp {
                 // Join room immediately after connection
                 this.socket.on('connect', () => {
                     console.log('Socket connected, joining room:', this.currentRoomId);
+                    // Send user name if available
+                    if (this.enteredUserName) {
+                        this.socket.emit('setUserName', this.enteredUserName);
+                    }
                     this.socket.emit('joinRoom', this.currentRoomId);
                 });
                 
                 // Also join immediately if already connected
                 if (this.socket.connected) {
                     console.log('Socket already connected, joining room:', this.currentRoomId);
+                    if (this.enteredUserName) {
+                        this.socket.emit('setUserName', this.enteredUserName);
+                    }
                     this.socket.emit('joinRoom', this.currentRoomId);
                 }
             } else {
