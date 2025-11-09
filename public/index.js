@@ -133,29 +133,22 @@ class DrawingCanvasApp {
             this.saveState();
         });
         
-        this.socket.on('undoAction', () => {
-            console.log('⏪ [SYNC] Undo command received - ALL users undoing together...');
-            // ANY user can trigger undo for EVERYONE
-            if (this.historyStack.length > 1) {
-                const currentState = this.historyStack.pop();
-                this.redoStack.push(currentState);
-                const prevState = this.historyStack[this.historyStack.length - 1];
-                this.ctx.putImageData(prevState, 0, 0);
-                this.updateUndoRedoUI();
-                console.log('✅ Undo applied successfully');
-            }
+        this.socket.on('clearRedoStack', () => {
+            console.log('🔄 Clearing redo stack due to new action');
+            this.redoStack = [];
+            this.updateUndoRedoUI();
         });
         
-        this.socket.on('redoAction', () => {
-            console.log('⏩ [SYNC] Redo command received - ALL users redoing together...');
-            // ANY user can trigger redo for EVERYONE
-            if (this.redoStack.length > 0) {
-                const nextState = this.redoStack.pop();
-                this.historyStack.push(nextState);
-                this.ctx.putImageData(nextState, 0, 0);
-                this.updateUndoRedoUI();
-                console.log('✅ Redo applied successfully');
-            }
+        this.socket.on('rebuildCanvas', (history) => {
+            console.log(`🔨 Rebuilding canvas from ${history.length} actions`);
+            // Clear canvas
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            // Rebuild from history
+            history.forEach(action => {
+                this.executeDrawAction(this.ctx, action);
+            });
+            // Save state
+            this.saveState();
         });
         
         this.socket.on('clearCanvas', () => {
@@ -631,33 +624,18 @@ class DrawingCanvasApp {
     }
     
     undo() {
-        if (this.historyStack.length > 1) {
-            const currentState = this.historyStack.pop();
-            this.redoStack.push(currentState);
-            const prevState = this.historyStack[this.historyStack.length - 1];
-            this.ctx.putImageData(prevState, 0, 0);
-            this.updateUndoRedoUI();
-            
-            console.log('⏪ [YOU] Clicked Undo - Broadcasting to OTHER users in room');
-            // Broadcast undo command to OTHER users (you already did undo locally)
-            if (this.socket) {
-                this.socket.emit('undoAction');
-            }
+        console.log('⏪ [YOU] Requesting undo from server');
+        // Request undo from server - server will manage history and rebuild for all
+        if (this.socket) {
+            this.socket.emit('undoAction');
         }
     }
     
     redo() {
-        if (this.redoStack.length > 0) {
-            const nextState = this.redoStack.pop();
-            this.historyStack.push(nextState);
-            this.ctx.putImageData(nextState, 0, 0);
-            this.updateUndoRedoUI();
-            
-            console.log('⏩ [YOU] Clicked Redo - Broadcasting to OTHER users in room');
-            // Broadcast redo command to OTHER users (you already did redo locally)
-            if (this.socket) {
-                this.socket.emit('redoAction');
-            }
+        console.log('⏩ [YOU] Requesting redo from server');
+        // Request redo from server - server will manage history and rebuild for all
+        if (this.socket) {
+            this.socket.emit('redoAction');
         }
     }
     
