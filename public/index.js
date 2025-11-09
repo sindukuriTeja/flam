@@ -58,6 +58,12 @@ class DrawingCanvasApp {
         this.currentRoomId = this.getRoomIdFromUrl() || 'default';
         this.lastUserCount = undefined;
         
+        // Conflict resolution: Pending actions queue with timestamps
+        this.pendingActions = [];
+        this.isProcessingQueue = false;
+        this.lastProcessedTimestamp = 0;
+        this.localActionCounter = 0;
+        
         // Validate required elements
         if (!this.canvas || !this.ctx || !this.selectionCanvas || !this.selectionCtx) {
             console.error('Canvas elements not found');
@@ -103,15 +109,64 @@ class DrawingCanvasApp {
         this.updateUI();
         console.log('Drawing Canvas App initialized successfully!');
     }
+    // Conflict Resolution: Queue-based ordered processing
+    addToPendingQueue(action) {
+        // Add action to queue
+        this.pendingActions.push(action);
+        
+        // Sort queue by timestamp to ensure consistent ordering across all clients
+        this.pendingActions.sort((a, b) => a.timestamp - b.timestamp);
+        
+        console.log(`📥 Added to queue. Queue size: ${this.pendingActions.length}`);
+        
+        // Process queue
+        this.processPendingQueue();
+    }
+    
+    processPendingQueue() {
+        if (this.isProcessingQueue) {
+            return; // Already processing
+        }
+        
+        this.isProcessingQueue = true;
+        
+        // Process all actions in order
+        while (this.pendingActions.length > 0) {
+            const action = this.pendingActions[0];
+            
+            // Only process actions with timestamp > last processed
+            if (action.timestamp <= this.lastProcessedTimestamp) {
+                console.warn(`⚠️ Skipping duplicate action with timestamp ${action.timestamp}`);
+                this.pendingActions.shift();
+                continue;
+            }
+            
+            // Execute the action
+            console.log(`⚙️ Processing action: ${action.tool} (timestamp: ${action.timestamp})`);
+            this.executeDrawAction(this.ctx, action);
+            
+            // Update last processed timestamp
+            this.lastProcessedTimestamp = action.timestamp;
+            
+            // Remove from queue
+            this.pendingActions.shift();
+        }
+        
+        // Save state after processing all actions
+        if (this.lastProcessedTimestamp > 0) {
+            this.saveState();
+        }
+        
+        this.isProcessingQueue = false;
+    }
+    
     setupSocketListeners() {
         if (!this.socket) return;
         
         this.socket.on('drawAction', (action) => {
-            console.log('✏️ Received drawing from another user:', action.tool);
-            // Execute the action to show other users' drawings
-            this.executeDrawAction(this.ctx, action);
-            // Save state after remote drawing
-            this.saveState();
+            console.log(`✏️ [CONFLICT-SAFE] Received action from another user: ${action.tool} (timestamp: ${action.timestamp})`);
+            // Add to pending queue for ordered processing
+            this.addToPendingQueue(action);
         });
         
         this.socket.on('canvasState', (state) => {
@@ -471,6 +526,9 @@ class DrawingCanvasApp {
         this.isDrawing = false;
         const endPoint = this.getPointInCanvas(e);
         
+        // Generate high-precision timestamp for conflict resolution
+        const timestamp = Date.now() + (this.localActionCounter++ / 1000);
+        
         const action = {
             tool: this.currentTool,
             color: this.color,
@@ -479,11 +537,15 @@ class DrawingCanvasApp {
             startPoint: this.startPoint,
             endPoint: endPoint,
             points: (this.currentTool === 'brush' || this.currentTool === 'eraser') 
-                   ? this.currentBrushStroke : undefined
+                   ? this.currentBrushStroke : undefined,
+            timestamp: timestamp  // For conflict resolution
         };
         
-        // Execute drawing locally
+        console.log(`📝 [LOCAL] Drawing ${action.tool} with timestamp ${timestamp}`);
+        
+        // Execute drawing locally immediately (optimistic UI)
         this.executeDrawAction(this.ctx, action);
+        this.lastProcessedTimestamp = timestamp;
         
         // Send to server (broadcast to others in the room)
         if (this.socket) {

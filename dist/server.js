@@ -114,15 +114,24 @@ io.on('connection', (socket) => {
     });
     socket.on('drawAction', (action) => {
         const room = getOrCreateRoom(currentRoom);
-        // Add timestamp if not present
+        // Ensure timestamp exists for conflict resolution
         if (!action.timestamp) {
             action.timestamp = Date.now();
+            console.warn(`⚠️ Action received without timestamp, assigned: ${action.timestamp}`);
         }
-        // Add to history and clear redo (new action invalidates redo)
+        // Check for duplicate actions (conflict prevention)
+        const isDuplicate = room.drawingHistory.some(existing => Math.abs(existing.timestamp - action.timestamp) < 1 &&
+            existing.tool === action.tool);
+        if (isDuplicate) {
+            console.warn(`⚠️ Duplicate action detected (timestamp: ${action.timestamp}), skipping`);
+            return;
+        }
+        // Add to history and sort by timestamp for consistent ordering
         room.drawingHistory.push(action);
+        room.drawingHistory.sort((a, b) => a.timestamp - b.timestamp);
         room.redoHistory = [];
-        console.log(`✏️ DrawAction in room ${currentRoom}: history=${room.drawingHistory.length}, redo=0`);
-        // Broadcast to OTHER users in the same room
+        console.log(`✏️ DrawAction in room ${currentRoom}: tool=${action.tool}, timestamp=${action.timestamp}, history=${room.drawingHistory.length}`);
+        // Broadcast to OTHER users in the same room with timestamp preserved
         socket.to(currentRoom).emit('drawAction', action);
         // Send undo/redo state to ALL users
         io.to(currentRoom).emit('undoRedoState', {
