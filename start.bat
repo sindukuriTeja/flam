@@ -1,0 +1,6 @@
+@echo off
+echo Building TypeScript...
+call npm run build
+echo.
+echo Starting server...
+call npm start
