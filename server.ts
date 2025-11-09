@@ -25,59 +25,100 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
-// Store canvas state
-let canvasState: any = null;
-let userCount = 0;
-let drawingHistory: any[] = []; // Store all drawing actions
+// Store canvas state per room
+interface RoomData {
+  canvasState: any;
+  drawingHistory: any[];
+  userCount: number;
+}
+
+const rooms = new Map<string, RoomData>();
+
+function getOrCreateRoom(roomId: string): RoomData {
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, {
+      canvasState: null,
+      drawingHistory: [],
+      userCount: 0
+    });
+  }
+  return rooms.get(roomId)!;
+}
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
-  userCount++;
-  io.emit('userCount', userCount);
-
-  // Send current canvas state to new user
-  if (canvasState) {
-    socket.emit('canvasState', canvasState);
-  }
+  let currentRoom = 'default';
   
-  // Send all drawing history to new user
-  if (drawingHistory.length > 0) {
-    socket.emit('syncHistory', drawingHistory);
-  }
+  // Handle room joining
+  socket.on('joinRoom', (roomId: string) => {
+    // Leave previous room
+    socket.leave(currentRoom);
+    const prevRoom = getOrCreateRoom(currentRoom);
+    prevRoom.userCount--;
+    io.to(currentRoom).emit('userCount', prevRoom.userCount);
+    
+    // Join new room
+    currentRoom = roomId || 'default';
+    socket.join(currentRoom);
+    const room = getOrCreateRoom(currentRoom);
+    room.userCount++;
+    
+    console.log(`User ${socket.id} joined room: ${currentRoom}`);
+    
+    // Send room info to all users in the room
+    io.to(currentRoom).emit('userCount', room.userCount);
+    io.to(currentRoom).emit('roomInfo', { roomId: currentRoom });
+    
+    // Send current canvas state to new user
+    if (room.canvasState) {
+      socket.emit('canvasState', room.canvasState);
+    }
+    
+    // Send all drawing history to new user
+    if (room.drawingHistory.length > 0) {
+      socket.emit('syncHistory', room.drawingHistory);
+    }
+  });
 
   socket.on('drawAction', (action) => {
-    // Store the action in history
-    drawingHistory.push(action);
-    // Broadcast the draw action to all other clients
-    socket.broadcast.emit('drawAction', action);
+    const room = getOrCreateRoom(currentRoom);
+    room.drawingHistory.push(action);
+    // Broadcast to all users in the same room
+    socket.to(currentRoom).emit('drawAction', action);
   });
 
   socket.on('canvasState', (state) => {
-    canvasState = state;
-    // Broadcast the full canvas state to all clients
-    socket.broadcast.emit('canvasState', state);
+    const room = getOrCreateRoom(currentRoom);
+    room.canvasState = state;
+    socket.to(currentRoom).emit('canvasState', state);
   });
   
   socket.on('undoAction', () => {
-    // Broadcast undo to all clients
-    io.emit('undoAction');
+    io.to(currentRoom).emit('undoAction');
   });
   
   socket.on('redoAction', () => {
-    // Broadcast redo to all clients
-    io.emit('redoAction');
+    io.to(currentRoom).emit('redoAction');
   });
 
   socket.on('clearCanvas', () => {
-    canvasState = null;
-    drawingHistory = []; // Clear history
-    socket.broadcast.emit('clearCanvas');
+    const room = getOrCreateRoom(currentRoom);
+    room.canvasState = null;
+    room.drawingHistory = [];
+    socket.to(currentRoom).emit('clearCanvas');
   });
 
   socket.on('disconnect', () => {
     console.log('A user disconnected:', socket.id);
-    userCount--;
-    io.emit('userCount', userCount);
+    const room = getOrCreateRoom(currentRoom);
+    room.userCount--;
+    io.to(currentRoom).emit('userCount', room.userCount);
+    
+    // Clean up empty rooms
+    if (room.userCount === 0 && currentRoom !== 'default') {
+      rooms.delete(currentRoom);
+      console.log(`Room ${currentRoom} deleted (empty)`);
+    }
   });
 });
 

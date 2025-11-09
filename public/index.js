@@ -48,9 +48,14 @@ class DrawingCanvasApp {
         this.clearBtn = document.getElementById('clear-btn');
         this.downloadBtn = document.getElementById('download-btn');
         this.shareLinkBtn = document.getElementById('share-link-btn');
+        this.createRoomBtn = document.getElementById('create-room-btn');
+        this.roomIdDisplay = document.getElementById('room-id-display');
         this.userCountElement = document.getElementById('user-count');
         this.customColorPickerLabel = null;
         this.customColorPickerInput = null;
+        
+        // Room management
+        this.currentRoomId = this.getRoomIdFromUrl() || 'default';
         
         // Validate required elements
         if (!this.canvas || !this.ctx || !this.selectionCanvas || !this.selectionCtx) {
@@ -67,6 +72,12 @@ class DrawingCanvasApp {
             if (typeof io !== 'undefined') {
                 this.socket = io();
                 console.log('Socket.IO connected successfully');
+                
+                // Join room after connection
+                this.socket.on('connect', () => {
+                    this.socket.emit('joinRoom', this.currentRoomId);
+                    console.log('Joined room:', this.currentRoomId);
+                });
             } else {
                 console.warn('Socket.IO library not loaded - running in offline mode');
             }
@@ -131,6 +142,12 @@ class DrawingCanvasApp {
         this.socket.on('userCount', (count) => {
             if (this.userCountElement) {
                 this.userCountElement.textContent = `${count} user${count !== 1 ? 's' : ''} online`;
+            }
+        });
+        
+        this.socket.on('roomInfo', (info) => {
+            if (this.roomIdDisplay) {
+                this.roomIdDisplay.textContent = `Room: ${info.roomId}`;
             }
         });
     }
@@ -251,6 +268,7 @@ class DrawingCanvasApp {
         if (this.clearBtn) this.clearBtn.addEventListener('click', () => this.clearCanvas());
         if (this.downloadBtn) this.downloadBtn.addEventListener('click', () => this.downloadImage());
         if (this.shareLinkBtn) this.shareLinkBtn.addEventListener('click', () => this.shareLink());
+        if (this.createRoomBtn) this.createRoomBtn.addEventListener('click', () => this.createNewRoom());
     }
     // Event Handlers
     getPointInCanvas(e) {
@@ -599,20 +617,44 @@ class DrawingCanvasApp {
     }
     
     shareLink() {
-        const currentUrl = window.location.href;
+        const roomUrl = this.getRoomUrl();
         
         // Try to copy to clipboard
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(currentUrl)
+            navigator.clipboard.writeText(roomUrl)
                 .then(() => {
-                    this.showNotification('Link copied! Share it with others to collaborate', 'success');
+                    this.showNotification('🎨 Invite link copied! Share it to collaborate in real-time', 'success');
                 })
                 .catch(() => {
-                    this.showShareDialog(currentUrl);
+                    this.showShareDialog(roomUrl);
                 });
         } else {
-            this.showShareDialog(currentUrl);
+            this.showShareDialog(roomUrl);
         }
+    }
+    
+    createNewRoom() {
+        const newRoomId = this.generateRoomId();
+        const newUrl = `${window.location.origin}${window.location.pathname}?room=${newRoomId}`;
+        
+        // Update URL and reload
+        window.location.href = newUrl;
+    }
+    
+    getRoomIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('room');
+    }
+    
+    getRoomUrl() {
+        if (this.currentRoomId && this.currentRoomId !== 'default') {
+            return `${window.location.origin}${window.location.pathname}?room=${this.currentRoomId}`;
+        }
+        return window.location.href;
+    }
+    
+    generateRoomId() {
+        return 'room_' + Math.random().toString(36).substring(2, 10);
     }
     
     showShareDialog(url) {
