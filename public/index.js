@@ -638,8 +638,8 @@ class DrawingCanvasApp {
             this.ctx.putImageData(prevState, 0, 0);
             this.updateUndoRedoUI();
             
-            console.log('⏪ [YOU] Clicked Undo - Broadcasting to ALL users in room');
-            // Broadcast undo command to ALL users (including yourself)
+            console.log('⏪ [YOU] Clicked Undo - Broadcasting to OTHER users in room');
+            // Broadcast undo command to OTHER users (you already did undo locally)
             if (this.socket) {
                 this.socket.emit('undoAction');
             }
@@ -653,8 +653,8 @@ class DrawingCanvasApp {
             this.ctx.putImageData(nextState, 0, 0);
             this.updateUndoRedoUI();
             
-            console.log('⏩ [YOU] Clicked Redo - Broadcasting to ALL users in room');
-            // Broadcast redo command to ALL users (including yourself)
+            console.log('⏩ [YOU] Clicked Redo - Broadcasting to OTHER users in room');
+            // Broadcast redo command to OTHER users (you already did redo locally)
             if (this.socket) {
                 this.socket.emit('redoAction');
             }

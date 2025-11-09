@@ -119,15 +119,15 @@ io.on('connection', (socket) => {
   });
   
   socket.on('undoAction', () => {
-    console.log(`Broadcasting undoAction to ALL users in room ${currentRoom}`);
-    // Broadcast to ALL users in room (including sender) to sync undo
-    io.to(currentRoom).emit('undoAction');
+    console.log(`Broadcasting undoAction to OTHER users in room ${currentRoom}`);
+    // Broadcast to OTHER users only (sender already did undo locally)
+    socket.to(currentRoom).emit('undoAction');
   });
   
   socket.on('redoAction', () => {
-    console.log(`Broadcasting redoAction to ALL users in room ${currentRoom}`);
-    // Broadcast to ALL users in room (including sender) to sync redo
-    io.to(currentRoom).emit('redoAction');
+    console.log(`Broadcasting redoAction to OTHER users in room ${currentRoom}`);
+    // Broadcast to OTHER users only (sender already did redo locally)
+    socket.to(currentRoom).emit('redoAction');
   });
 
   socket.on('clearCanvas', () => {
