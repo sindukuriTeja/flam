@@ -53,6 +53,10 @@ class Canvas {
         this.ctx.lineJoin = 'round';
     }
 
+    isShapeTool(tool) {
+        return ['rectangle', 'circle', 'triangle', 'line', 'arrow'].includes(tool);
+    }
+
     startDrawing(e) {
         this.isDrawing = true;
         const point = this.getPoint(e);
@@ -62,17 +66,18 @@ class Canvas {
         // Determine the color based on the current tool
         let pathColor;
         if (currentTool === 'eraser') {
-            pathColor = '#FFFFFF';
+            pathColor = '#131521'; // match canvas background
         } else {
             pathColor = colorPicker.value;
         }
 
         this.state.currentPath = {
             id: Math.random().toString(36).substr(2, 9),
-            points: [point],
+            points: this.isShapeTool(currentTool) ? [point, point] : [point],
             color: pathColor,
             width: this.getStrokeWidth(),
             tool: currentTool,
+            fill: !!document.getElementById('fillToggle')?.classList.contains('active'),
             userId: this.userId
         };
 
@@ -84,10 +89,17 @@ class Canvas {
         if (!this.isDrawing || !this.state.currentPath) return;
 
         const point = this.getPoint(e);
-        this.state.currentPath.points.push(point);
+        const path = this.state.currentPath;
 
-        // Optimize by only redrawing the changed portion
-        this.drawPath(this.state.currentPath);
+        if (this.isShapeTool(path.tool)) {
+            // Shapes: update the end point and show a live preview
+            path.points[1] = point;
+            this.redraw();
+            this.drawPath(path);
+        } else {
+            path.points.push(point);
+            this.drawPath(path);
+        }
     }
 
     endDrawing() {
@@ -112,12 +124,26 @@ class Canvas {
     }
 
     drawPath(path) {
-        if (path.points.length < 2) return;
+        if (!path.points || path.points.length === 0) return;
 
-        this.ctx.beginPath();
         this.ctx.strokeStyle = path.color;
+        this.ctx.fillStyle = path.color;
         this.ctx.lineWidth = path.width;
 
+        if (this.isShapeTool(path.tool)) {
+            this.drawShape(path);
+            return;
+        }
+
+        if (path.points.length < 2) {
+            // Single dot
+            this.ctx.beginPath();
+            this.ctx.arc(path.points[0].x, path.points[0].y, path.width / 2, 0, Math.PI * 2);
+            this.ctx.fill();
+            return;
+        }
+
+        this.ctx.beginPath();
         // Move to the first point
         this.ctx.moveTo(path.points[0].x, path.points[0].y);
 
@@ -131,6 +157,48 @@ class Canvas {
         // Draw the last segment
         const last = path.points[path.points.length - 1];
         this.ctx.lineTo(last.x, last.y);
+        this.ctx.stroke();
+    }
+
+    drawShape(path) {
+        const [start, end] = [path.points[0], path.points[path.points.length - 1]];
+        const x = Math.min(start.x, end.x);
+        const y = Math.min(start.y, end.y);
+        const w = Math.abs(end.x - start.x);
+        const h = Math.abs(end.y - start.y);
+
+        this.ctx.beginPath();
+        switch (path.tool) {
+            case 'rectangle':
+                this.ctx.rect(x, y, w, h);
+                break;
+            case 'circle':
+                this.ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+                break;
+            case 'triangle':
+                this.ctx.moveTo(x + w / 2, y);
+                this.ctx.lineTo(x + w, y + h);
+                this.ctx.lineTo(x, y + h);
+                this.ctx.closePath();
+                break;
+            case 'line':
+                this.ctx.moveTo(start.x, start.y);
+                this.ctx.lineTo(end.x, end.y);
+                this.ctx.stroke();
+                return;
+            case 'arrow': {
+                this.ctx.moveTo(start.x, start.y);
+                this.ctx.lineTo(end.x, end.y);
+                const angle = Math.atan2(end.y - start.y, end.x - start.x);
+                const head = Math.max(12, path.width * 3);
+                this.ctx.lineTo(end.x - head * Math.cos(angle - Math.PI / 6), end.y - head * Math.sin(angle - Math.PI / 6));
+                this.ctx.moveTo(end.x, end.y);
+                this.ctx.lineTo(end.x - head * Math.cos(angle + Math.PI / 6), end.y - head * Math.sin(angle + Math.PI / 6));
+                this.ctx.stroke();
+                return;
+            }
+        }
+        if (path.fill) this.ctx.fill();
         this.ctx.stroke();
     }
 

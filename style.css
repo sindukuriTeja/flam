@@ -10,3 +10,18 @@
 .login-card input:focus{border-color:var(--blue)}
 .login-card .game-button{margin-top:4px}
 .login-hint{color:var(--muted);font-size:12px;margin:14px 0 0;text-align:center}
+
+/* Right-panel drawing tools */
+.draw-tools-panel{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.draw-tools-panel .tool-group{display:flex;flex-wrap:wrap;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px}
+.draw-tools-panel .tool{flex:1 1 auto;min-width:38px;text-align:center;font-size:17px;padding:8px 6px}
+.color-row{display:flex;align-items:center;gap:10px}
+.color-palette{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.swatch{width:26px;height:26px;border-radius:6px;border:2px solid var(--line);cursor:pointer;padding:0;transition:.15s}
+.swatch:hover{transform:scale(1.12);border-color:#fff}
+.color-tool{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.color-tool input[type=color]{width:30px;height:30px;border:1px solid var(--line);border-radius:6px;background:transparent;padding:2px;cursor:pointer}
+.stroke-tool{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.stroke-tool input[type=range]{flex:1;accent-color:var(--blue)}
+.stroke-value{min-width:34px;text-align:right;color:var(--text)}
+.history-tools .action{flex:1;text-align:center}

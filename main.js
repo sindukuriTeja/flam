@@ -63,7 +63,16 @@ class CollaborativeDrawingApp {
   renderScores(scores, leaderName) { const list = this.$('#scoreList'); list.innerHTML = ''; const highest = scores.length ? Math.max(...scores.map(player => player.score)) : 0; scores.forEach(player => { const item = document.createElement('li'); if (player.score === highest && scores.length) item.classList.add('leader'); item.innerHTML = `<span><b>${player.name}</b> <small>#${player.number}</small></span><strong>${player.score}</strong>`; list.appendChild(item); }); if (leaderName) this.$('.scoreboard h2').textContent = `Scoreboard · ${leaderName}`; }
   clearCanvas() { this.canvas.state.paths = []; this.canvas.state.redoStack = []; this.canvas.redraw(); }
   setupToolbar() {
-    document.querySelectorAll('.tool').forEach(tool => tool.addEventListener('click', event => { document.querySelector('.tool.active')?.classList.remove('active'); event.currentTarget.classList.add('active'); }));
+    const PALETTE = ['#171a26', '#ffffff', '#6d7cff', '#56d5a2', '#ff7183', '#ffb454', '#4dd0e1', '#f06292', '#ba68c8', '#a1887f'];
+    const palette = this.$('#colorPalette');
+    PALETTE.forEach(color => {
+      const swatch = document.createElement('button');
+      swatch.type = 'button'; swatch.className = 'swatch'; swatch.style.background = color; swatch.title = color;
+      swatch.addEventListener('click', () => { this.$('#colorPicker').value = color; });
+      palette.appendChild(swatch);
+    });
+    document.querySelectorAll('.tool:not(#fillToggle)').forEach(tool => tool.addEventListener('click', event => { document.querySelector('.tool.active:not(#fillToggle)')?.classList.remove('active'); event.currentTarget.classList.add('active'); }));
+    this.$('#fillToggle').addEventListener('click', event => event.currentTarget.classList.toggle('active'));
     this.$('#strokeWidth').addEventListener('input', event => this.$('.stroke-value').textContent = `${event.target.value}px`);
     this.$('#undo').addEventListener('click', () => { this.canvas.undo(); this.wsClient.sendUndo(this.room); }); this.$('#redo').addEventListener('click', () => { this.canvas.redo(); this.wsClient.sendRedo(this.room); });
   }
