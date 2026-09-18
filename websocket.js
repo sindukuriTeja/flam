@@ -103,8 +103,12 @@ class WebSocketClient {
         });
     }
 
-    joinRoom(roomId) {
-        this.socket.emit('joinRoom', roomId);
+    joinRoom(roomId, name) {
+        if (name) {
+            this.socket.emit('joinRoom', { roomId, name });
+        } else {
+            this.socket.emit('joinRoom', roomId);
+        }
     }
 
     sendDraw(roomId, path) {

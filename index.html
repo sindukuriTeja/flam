@@ -31,6 +31,17 @@
       <section class="canvas-container"><canvas id="drawingCanvas"></canvas></section>
     </main>
   </div>
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-card">
+      <div class="game-brand"><span>✦</span><div><h1>Draw &amp; Guess</h1><p>Pictionary with friends</p></div></div>
+      <form id="loginForm">
+        <label for="nameInput">What's your name?</label>
+        <input id="nameInput" maxlength="24" placeholder="Enter your name" autocomplete="off">
+        <button class="game-button" type="submit">Join Game</button>
+      </form>
+      <p class="login-hint">You'll join the room with this name. Share the room link with friends!</p>
+    </div>
+  </div>
   <script src="/socket.io/socket.io.js"></script><script type="module" src="main.js"></script>
 </body>
 </html>
