@@ -1,0 +1,331 @@
+:root {
+    --primary-color: #2196f3;
+    --primary-dark: #1976d2;
+    --success-color: #4CAF50;
+    --error-color: #f44336;
+    --background-color: #f8f9fa;
+    --surface-color: #ffffff;
+    --text-primary: #2c3e50;
+    --text-secondary: #6c757d;
+    --border-color: #e9ecef;
+    --toolbar-height: 64px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --transition: all 0.2s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Toolbar Styles */
+.toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--toolbar-height);
+    background: var(--surface-color);
+    box-shadow: var(--shadow-sm);
+    z-index: 100;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.tool-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+/* Tool Buttons */
+.tool, .action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.tool:hover, .action:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--text-primary);
+}
+
+.tool.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.tool svg, .action svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Color and Stroke Tools */
+.color-tools {
+    display: flex;
+    gap: 16px;
+    padding: 8px 12px;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.color-tool, .stroke-tool {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-tool label, .stroke-tool label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+#colorPicker {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+#colorPicker:hover {
+    border-color: var(--primary-color);
+}
+
+#strokeWidth {
+    width: 120px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border-color);
+    border-radius: 2px;
+    outline: none;
+}
+
+#strokeWidth::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+}
+
+.stroke-value {
+    min-width: 40px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Status Section */
+.status-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--error-color);
+}
+
+.connection-status.online .status-indicator {
+    background: var(--success-color);
+}
+
+.metrics {
+    display: flex;
+    gap: 12px;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.fps, .latency {
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--background-color);
+    color: var(--text-secondary);
+}
+
+/* Room Controls */
+.room-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.room-controls .action {
+    padding: 8px 16px;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.action.primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.action.primary:hover {
+    background: var(--primary-dark);
+}
+
+.room-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.room-id {
+    padding: 4px 8px;
+    background: var(--background-color);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.online-users {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Canvas Container */
+.canvas-container {
+    margin-top: var(--toolbar-height);
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+#drawingCanvas {
+    background: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+}
+
+/* User Cursors */
+.user-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.cursor-pointer {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: var(--shadow-sm);
+}
+
+.cursor-name {
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 1000;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .toolbar {
+        height: auto;
+        padding: 12px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .toolbar-section {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .tool-group {
+        flex-wrap: wrap;
+    }
+
+    .canvas-container {
+        margin-top: 120px;
+    }
+}

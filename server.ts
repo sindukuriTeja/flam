@@ -1,6 +1,6 @@
 import express = require('express');
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import * as path from 'path';
 
 const app = express();
@@ -14,388 +14,126 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3002;
 
-// Serve static files from public directory
-app.use('/public', express.static(path.join(__dirname, '..', 'public')));
+// Root directory holds the client files (index.html, main.js, canvas.js,
+// websocket.js, style.css). Serve only those, never node_modules/package.json.
+const ROOT = path.join(__dirname, '..');
+const CLIENT_FILES = ['index.html', 'main.js', 'canvas.js', 'websocket.js', 'style.css'];
 
-// Serve static files from root (for any other static files)
-app.use(express.static(path.join(__dirname, '..')));
-
-// Serve the main HTML file from the root directory
+// Root serves the app
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+  res.sendFile(path.join(ROOT, 'index.html'));
 });
 
-// Store canvas state per room
-interface DrawAction {
-  tool: string;
-  color: string;
-  brushSize: number;
-  isFillEnabled?: boolean;
-  startPoint: { x: number; y: number };
-  endPoint: { x: number; y: number };
-  points?: { x: number; y: number }[];
-  timestamp: number;
-  userId?: string;  // Track who made the action
-  userName?: string; // Display name of user
+// Serve each client asset explicitly
+for (const file of CLIENT_FILES) {
+  app.get('/' + file, (req, res) => {
+    res.sendFile(path.join(ROOT, file));
+  });
 }
 
-interface UserInfo {
+// A single drawn path as sent by the client (canvas.js)
+interface DrawPath {
   id: string;
-  name: string;
+  points: { x: number; y: number; pressure?: number }[];
   color: string;
-  socketId: string;
-  joinedAt: number;
-  lastActivity: number;
-}
-
-interface CursorPosition {
-  x: number;
-  y: number;
+  width: number;
+  tool: string;
   userId: string;
-  userName: string;
-  color: string;
 }
 
 interface RoomData {
-  canvasState: any;
-  drawingHistory: DrawAction[];
-  redoHistory: DrawAction[];
-  userCount: number;
-  users: Map<string, UserInfo>;  // Active users in room
+  paths: DrawPath[];
+  users: Map<string, string>; // socketId -> name
 }
 
 const rooms = new Map<string, RoomData>();
 
-// Predefined user colors for visual identification
-const USER_COLORS = [
-  '#ef4444', // Red
-  '#f59e0b', // Amber
-  '#10b981', // Emerald
-  '#3b82f6', // Blue
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#14b8a6', // Teal
-  '#f97316', // Orange
-  '#06b6d4', // Cyan
-  '#a855f7'  // Purple
-];
-
 function getOrCreateRoom(roomId: string): RoomData {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, {
-      canvasState: null,
-      drawingHistory: [],
-      redoHistory: [],
-      userCount: 0,
-      users: new Map()
-    });
+    rooms.set(roomId, { paths: [], users: new Map() });
   }
   return rooms.get(roomId)!;
 }
 
-function assignUserColor(room: RoomData): string {
-  const usedColors = Array.from(room.users.values()).map(u => u.color);
-  const availableColor = USER_COLORS.find(color => !usedColors.includes(color));
-  return availableColor || USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)];
+function userCount(roomId: string): number {
+  const room = rooms.get(roomId);
+  return room ? room.users.size : 0;
 }
 
-function generateUserName(room: RoomData): string {
-  const existingNumbers = Array.from(room.users.values())
-    .map(u => u.name)
-    .filter(name => name.startsWith('User '))
-    .map(name => parseInt(name.replace('User ', '')))
-    .filter(n => !isNaN(n));
-  
-  const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-  return `User ${nextNumber}`;
-}
+io.on('connection', (socket: Socket) => {
+  let currentRoom: string | null = null;
 
-function getUsersList(room: RoomData) {
-  return Array.from(room.users.values()).map(user => ({
-    id: user.id,
-    name: user.name,
-    color: user.color,
-    joinedAt: user.joinedAt
-  }));
-}
+  // Join / switch room
+  socket.on('joinRoom', (roomId: string) => {
+    const id = (roomId && roomId.trim()) ? roomId : 'default';
 
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-  let currentRoom = 'default';
-  let currentUser: UserInfo | null = null;
-  let customUserName: string | null = null;
-  
-  // Handle custom user name
-  socket.on('setUserName', (userName: string) => {
-    if (userName && userName.trim().length > 0) {
-      customUserName = userName.trim().substring(0, 20); // Limit to 20 chars
-      console.log(`🏷️ User ${socket.id} set custom name: ${customUserName}`);
-      
-      // Update current user if already created
-      if (currentUser) {
-        currentUser.name = customUserName;
-        const room = getOrCreateRoom(currentRoom);
-        room.users.set(currentUser.id, currentUser);
-        
-        // Broadcast updated user info
-        socket.emit('userInfo', {
-          id: currentUser.id,
-          name: currentUser.name,
-          color: currentUser.color
-        });
-        io.to(currentRoom).emit('usersList', getUsersList(room));
+    // Leave previous room if any
+    if (currentRoom) {
+      socket.leave(currentRoom);
+      const prev = rooms.get(currentRoom);
+      if (prev) {
+        prev.users.delete(socket.id);
+        io.to(currentRoom).emit('userJoined', { userCount: prev.users.size });
+        if (prev.users.size === 0) rooms.delete(currentRoom);
       }
     }
-  });
-  
-  // Automatically join default room on connection
-  socket.join(currentRoom);
-  const defaultRoom = getOrCreateRoom(currentRoom);
-  
-  // Create user info with unique color and name
-  const userId = socket.id;
-  const userName = customUserName || generateUserName(defaultRoom);
-  const userColor = assignUserColor(defaultRoom);
-  
-  currentUser = {
-    id: userId,
-    name: userName,
-    color: userColor,
-    socketId: socket.id,
-    joinedAt: Date.now(),
-    lastActivity: Date.now()
-  };
-  
-  defaultRoom.users.set(userId, currentUser);
-  defaultRoom.userCount++;
-  
-  console.log(`👤 ${userName} (${userColor}) joined room: ${currentRoom}`);
-  
-  // Send user's own info
-  socket.emit('userInfo', {
-    id: currentUser.id,
-    name: currentUser.name,
-    color: currentUser.color
-  });
-  
-  // Send updated user list to ALL users in room
-  io.to(currentRoom).emit('usersList', getUsersList(defaultRoom));
-  io.to(currentRoom).emit('userCount', defaultRoom.userCount);
-  io.to(currentRoom).emit('roomInfo', { roomId: currentRoom });
-  
-  // Send current state to new user
-  if (defaultRoom.canvasState) {
-    socket.emit('canvasState', defaultRoom.canvasState);
-  }
-  if (defaultRoom.drawingHistory.length > 0) {
-    socket.emit('syncHistory', defaultRoom.drawingHistory);
-  }
-  
-  // Handle room joining
-  socket.on('joinRoom', (roomId: string) => {
-    if (roomId === currentRoom) return; // Already in this room
-    
-    // Leave previous room
-    socket.leave(currentRoom);
-    const prevRoom = getOrCreateRoom(currentRoom);
-    if (currentUser) {
-      prevRoom.users.delete(currentUser.id);
-    }
-    prevRoom.userCount = Math.max(0, prevRoom.userCount - 1);
-    io.to(currentRoom).emit('userCount', prevRoom.userCount);
-    io.to(currentRoom).emit('usersList', getUsersList(prevRoom));
-    console.log(`User ${socket.id} left room ${currentRoom}, remaining: ${prevRoom.userCount}`);
-    
-    // Join new room
-    currentRoom = roomId || 'default';
-    socket.join(currentRoom);
-    const room = getOrCreateRoom(currentRoom);
-    
-    // Update user color for new room
-    if (currentUser) {
-      currentUser.color = assignUserColor(room);
-      // Use custom name if available, otherwise generate new name
-      currentUser.name = customUserName || generateUserName(room);
-      currentUser.joinedAt = Date.now();
-      room.users.set(currentUser.id, currentUser);
-    }
-    room.userCount++;
-    
-    console.log(`👤 ${currentUser?.name} joined room: ${currentRoom}, users: ${room.userCount}`);
-    
-    // Send updated user info
-    socket.emit('userInfo', {
-      id: currentUser!.id,
-      name: currentUser!.name,
-      color: currentUser!.color
-    });
-    
-    // Send room info to all users in the room
-    io.to(currentRoom).emit('userCount', room.userCount);
-    io.to(currentRoom).emit('usersList', getUsersList(room));
-    io.to(currentRoom).emit('roomInfo', { roomId: currentRoom });
-    
-    // Send current canvas state to new user
-    if (room.canvasState) {
-      socket.emit('canvasState', room.canvasState);
-    }
-    
-    // Send all drawing history to new user
-    if (room.drawingHistory.length > 0) {
-      socket.emit('syncHistory', room.drawingHistory);
-    }
+
+    currentRoom = id;
+    socket.join(id);
+    const room = getOrCreateRoom(id);
+    room.users.set(socket.id, `User ${socket.id.slice(0, 4)}`);
+
+    // Send the joining client the current canvas state
+    socket.emit('roomState', { paths: room.paths });
+
+    // Tell everyone in the room how many users are online
+    io.to(id).emit('userJoined', { userCount: room.users.size });
   });
 
-  socket.on('drawAction', (action: DrawAction) => {
+  // A finished path is drawn
+  socket.on('draw', (data: { roomId: string; path: DrawPath }) => {
+    if (!data || !data.path || !currentRoom) return;
     const room = getOrCreateRoom(currentRoom);
-    
-    // Add user info to action
-    if (currentUser) {
-      action.userId = currentUser.id;
-      action.userName = currentUser.name;
-      currentUser.lastActivity = Date.now();
-    }
-    
-    // Ensure timestamp exists for conflict resolution
-    if (!action.timestamp) {
-      action.timestamp = Date.now();
-      console.warn(`⚠️ Action received without timestamp, assigned: ${action.timestamp}`);
-    }
-    
-    // Check for duplicate actions (conflict prevention)
-    const isDuplicate = room.drawingHistory.some(existing => 
-      Math.abs(existing.timestamp - action.timestamp) < 1 &&
-      existing.tool === action.tool
-    );
-    
-    if (isDuplicate) {
-      console.warn(`⚠️ Duplicate action detected (timestamp: ${action.timestamp}), skipping`);
-      return;
-    }
-    
-    // Add to history and sort by timestamp for consistent ordering
-    room.drawingHistory.push(action);
-    room.drawingHistory.sort((a, b) => a.timestamp - b.timestamp);
-    room.redoHistory = [];
-    
-    console.log(`✏️ ${currentUser?.name} drew ${action.tool} in room ${currentRoom}`);
-    
-    // Broadcast to ALL users in the same room (including sender)
-    io.to(currentRoom).emit('drawAction', action);
-    
-    // Send undo/redo state to ALL users
-    io.to(currentRoom).emit('undoRedoState', {
-      canUndo: room.drawingHistory.length > 0,
-      canRedo: room.redoHistory.length > 0
-    });
-  });
-  
-  // Handle cursor position updates for real-time collaboration
-  socket.on('cursorMove', (data: { x: number; y: number }) => {
-    if (currentUser) {
-      const cursorData: CursorPosition = {
-        x: data.x,
-        y: data.y,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        color: currentUser.color
-      };
-      // Broadcast cursor position to OTHER users
-      socket.to(currentRoom).emit('cursorMove', cursorData);
-    }
+    room.paths.push(data.path);
+
+    // Relay to the other users in the room (the sender already drew it locally)
+    socket.to(currentRoom).emit('draw', { path: data.path });
   });
 
-  socket.on('canvasState', (state) => {
-    const room = getOrCreateRoom(currentRoom);
-    room.canvasState = state;
-    console.log(`Broadcasting canvasState to room ${currentRoom}`);
-    // Broadcast to ALL users (sender needs this too for sync)
-    io.to(currentRoom).emit('canvasState', state);
-  });
-  
-  // Global Undo - Server manages the authoritative history
-  socket.on('requestUndo', () => {
-    const room = getOrCreateRoom(currentRoom);
-    
-    if (room.drawingHistory.length > 0) {
-      // Move last action from history to redo
-      const lastAction = room.drawingHistory.pop()!;
-      room.redoHistory.push(lastAction);
-      
-      console.log(`⏪ UNDO in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoHistory.length}`);
-      
-      // Send the entire current history to ALL users to rebuild
-      io.to(currentRoom).emit('syncHistory', room.drawingHistory);
-      
-      // Update undo/redo button states for all users
-      io.to(currentRoom).emit('undoRedoState', {
-        canUndo: room.drawingHistory.length > 0,
-        canRedo: room.redoHistory.length > 0
-      });
-    }
-  });
-  
-  // Global Redo - Server manages the authoritative history
-  socket.on('requestRedo', () => {
-    const room = getOrCreateRoom(currentRoom);
-    
-    if (room.redoHistory.length > 0) {
-      // Move action from redo back to history
-      const redoAction = room.redoHistory.pop()!;
-      room.drawingHistory.push(redoAction);
-      
-      console.log(`⏩ REDO in room ${currentRoom}: history=${room.drawingHistory.length}, redo=${room.redoHistory.length}`);
-      
-      // Send the entire current history to ALL users to rebuild
-      io.to(currentRoom).emit('syncHistory', room.drawingHistory);
-      
-      // Update undo/redo button states for all users
-      io.to(currentRoom).emit('undoRedoState', {
-        canUndo: room.drawingHistory.length > 0,
-        canRedo: room.redoHistory.length > 0
-      });
-    }
+  // Undo — the client pops its own path; relay to others so they pop too
+  socket.on('undo', (_roomId: string) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit('undoPath', {});
   });
 
-  socket.on('clearCanvas', () => {
-    const room = getOrCreateRoom(currentRoom);
-    room.canvasState = null;
-    room.drawingHistory = [];
-    room.redoHistory = [];
-    
-    console.log(`🗑️ CLEAR in room ${currentRoom}`);
-    
-    // Broadcast to ALL users (sender needs this too for sync)
-    io.to(currentRoom).emit('clearCanvas');
-    
-    // Update undo/redo button states for all users
-    io.to(currentRoom).emit('undoRedoState', {
-      canUndo: false,
-      canRedo: false
+  // Redo — mirror of undo
+  socket.on('redo', (_roomId: string) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit('redoPath', {});
+  });
+
+  // Live cursor position
+  socket.on('cursorMove', (data: { roomId: string; x: number; y: number }) => {
+    if (!data || !currentRoom) return;
+    socket.to(currentRoom).emit('cursorMove', {
+      userId: socket.id,
+      x: data.x,
+      y: data.y
     });
+  });
+
+  // Latency ping/pong
+  socket.on('ping', () => {
+    socket.emit('pong');
   });
 
   socket.on('disconnect', () => {
-    console.log('A user disconnected:', socket.id);
-    const room = getOrCreateRoom(currentRoom);
-    
-    // Remove user from room
-    if (currentUser) {
-      room.users.delete(currentUser.id);
-      console.log(`👋 ${currentUser.name} left room ${currentRoom}`);
-    }
-    
-    room.userCount = Math.max(0, room.userCount - 1);
-    console.log(`Room ${currentRoom} now has ${room.userCount} users`);
-    
-    // Broadcast updated user list and count
-    io.to(currentRoom).emit('userCount', room.userCount);
-    io.to(currentRoom).emit('usersList', getUsersList(room));
-    
-    // Clean up empty rooms (except default)
-    if (room.userCount === 0 && currentRoom !== 'default') {
-      rooms.delete(currentRoom);
-      console.log(`Room ${currentRoom} deleted (empty)`);
+    if (!currentRoom) return;
+    const room = rooms.get(currentRoom);
+    if (room) {
+      room.users.delete(socket.id);
+      io.to(currentRoom).emit('userJoined', { userCount: room.users.size });
+      if (room.users.size === 0) rooms.delete(currentRoom);
     }
   });
 });
