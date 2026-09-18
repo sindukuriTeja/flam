@@ -54,7 +54,7 @@ class Canvas {
     }
 
     isShapeTool(tool) {
-        return ['rectangle', 'circle', 'triangle', 'line', 'arrow'].includes(tool);
+        return ['rectangle', 'circle', 'triangle', 'diamond', 'line', 'arrow', 'heart'].includes(tool);
     }
 
     startDrawing(e) {
@@ -135,11 +135,35 @@ class Canvas {
             return;
         }
 
+        // Spray paint: scattered dots around each point (deterministic so all players match)
+        if (path.tool === 'spray') {
+            const radius = Math.max(10, path.width * 2.5);
+            path.points.forEach((p, pi) => {
+                for (let i = 0; i < 24; i++) {
+                    const seed = (pi * 2654435761 + i * 40503) % 1000 / 1000;
+                    const a = seed * Math.PI * 2;
+                    const r = ((pi * 97 + i * 31) % 100) / 100 * radius;
+                    const size = ((pi * 13 + i * 7) % 10) / 10 * 1.6 + 0.4;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            });
+            return;
+        }
+
+        // Marker: thick, semi-transparent stroke
+        if (path.tool === 'marker') {
+            this.ctx.globalAlpha = 0.45;
+            this.ctx.lineWidth = path.width * 2.4;
+        }
+
         if (path.points.length < 2) {
             // Single dot
             this.ctx.beginPath();
-            this.ctx.arc(path.points[0].x, path.points[0].y, path.width / 2, 0, Math.PI * 2);
+            this.ctx.arc(path.points[0].x, path.points[0].y, Math.max(2, path.width / 2), 0, Math.PI * 2);
             this.ctx.fill();
+            this.ctx.globalAlpha = 1;
             return;
         }
 
@@ -158,6 +182,7 @@ class Canvas {
         const last = path.points[path.points.length - 1];
         this.ctx.lineTo(last.x, last.y);
         this.ctx.stroke();
+        this.ctx.globalAlpha = 1;
     }
 
     drawShape(path) {
@@ -181,6 +206,23 @@ class Canvas {
                 this.ctx.lineTo(x, y + h);
                 this.ctx.closePath();
                 break;
+            case 'diamond':
+                this.ctx.moveTo(x + w / 2, y);
+                this.ctx.lineTo(x + w, y + h / 2);
+                this.ctx.lineTo(x + w / 2, y + h);
+                this.ctx.lineTo(x, y + h / 2);
+                this.ctx.closePath();
+                break;
+            case 'heart': {
+                const cx = x + w / 2;
+                this.ctx.moveTo(cx, y + h * 0.32);
+                this.ctx.bezierCurveTo(cx, y, x, y, x, y + h * 0.32);
+                this.ctx.bezierCurveTo(x, y + h * 0.62, cx, y + h * 0.82, cx, y + h);
+                this.ctx.bezierCurveTo(cx, y + h * 0.82, x + w, y + h * 0.62, x + w, y + h * 0.32);
+                this.ctx.bezierCurveTo(x + w, y, cx, y, cx, y + h * 0.32);
+                this.ctx.closePath();
+                break;
+            }
             case 'line':
                 this.ctx.moveTo(start.x, start.y);
                 this.ctx.lineTo(end.x, end.y);
@@ -249,6 +291,13 @@ class Canvas {
     applyPath(path) {
         this.state.paths.push(path);
         this.drawPath(path);
+    }
+
+    clearAll() {
+        this.state.paths = [];
+        this.state.redoStack = [];
+        this.state.currentPath = null;
+        this.redraw();
     }
 
     setOnDrawCallback(callback) {

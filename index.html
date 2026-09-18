@@ -14,12 +14,55 @@
 
     <main class="game-layout">
       <aside class="tools-panel">
-        <div class="section-heading"><h2>Tools</h2></div>
-        <div class="tool-group drawing-tools"><button id="brush" class="tool active" title="Brush"><span>✎</span></button><button id="eraser" class="tool" title="Eraser"><span>⌫</span></button></div>
-        <div class="tool-group shape-tools"><button id="rectangle" class="tool shape" title="Rectangle"><span>▭</span></button><button id="circle" class="tool shape" title="Circle"><span>◯</span></button><button id="triangle" class="tool shape" title="Triangle"><span>△</span></button><button id="line" class="tool shape" title="Line"><span>╱</span></button><button id="arrow" class="tool shape" title="Arrow"><span>→</span></button><button id="fillToggle" class="tool" title="Fill shapes"><span>◧</span></button></div>
-        <div class="color-row"><div class="color-palette" id="colorPalette"></div><div class="color-tool"><label for="colorPicker">Custom</label><input type="color" id="colorPicker" value="#6d7cff"></div></div>
-        <div class="stroke-tool"><label for="strokeWidth">Stroke</label><input type="range" id="strokeWidth" min="1" max="50" value="5"><span class="stroke-value">5px</span></div>
-        <div class="tool-group history-tools"><button id="undo" class="action" title="Undo">↶ Undo</button><button id="redo" class="action" title="Redo">↷ Redo</button></div>
+        <div class="tools-logo">
+          <div class="logo-mark">✦</div>
+          <div class="logo-text"><strong>Draw &amp; Guess</strong><span>Studio</span></div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-heading"><h2>Draw</h2></div>
+          <div class="tool-grid">
+            <button id="brush" class="tool active" title="Brush"><span>✎</span></button>
+            <button id="marker" class="tool" title="Marker"><span>✒</span></button>
+            <button id="spray" class="tool" title="Spray"><span>∴</span></button>
+            <button id="eraser" class="tool" title="Eraser"><span>⌫</span></button>
+          </div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-heading"><h2>Shapes</h2></div>
+          <div class="tool-grid">
+            <button id="rectangle" class="tool shape" title="Rectangle"><span>▭</span></button>
+            <button id="circle" class="tool shape" title="Circle"><span>◯</span></button>
+            <button id="triangle" class="tool shape" title="Triangle"><span>△</span></button>
+            <button id="diamond" class="tool shape" title="Diamond"><span>◇</span></button>
+            <button id="line" class="tool shape" title="Line"><span>╱</span></button>
+            <button id="arrow" class="tool shape" title="Arrow"><span>→</span></button>
+            <button id="heart" class="tool shape" title="Heart"><span>♥</span></button>
+            <button id="fillToggle" class="tool" title="Fill shapes"><span>◧</span></button>
+          </div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-heading"><h2>Color</h2></div>
+          <div class="color-palette" id="colorPalette"></div>
+          <div class="custom-color"><label for="colorPicker">Custom color</label><input type="color" id="colorPicker" value="#6d7cff"></div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-heading"><h2>Stroke</h2></div>
+          <div class="stroke-tool"><input type="range" id="strokeWidth" min="1" max="50" value="5"><span class="stroke-value">5px</span></div>
+        </div>
+
+        <div class="tool-section">
+          <div class="section-heading"><h2>Actions</h2></div>
+          <div class="tool-grid actions">
+            <button id="undo" class="action" title="Undo"><span>↶</span><small>Undo</small></button>
+            <button id="redo" class="action" title="Redo"><span>↷</span><small>Redo</small></button>
+            <button id="clearCanvas" class="action" title="Clear canvas"><span>🗑</span><small>Clear</small></button>
+            <button id="downloadCanvas" class="action" title="Download PNG"><span>⬇</span><small>Save</small></button>
+          </div>
+        </div>
       </aside>
       <section class="canvas-container"><canvas id="drawingCanvas"></canvas></section>
       <aside class="game-panel">

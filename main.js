@@ -63,18 +63,24 @@ class CollaborativeDrawingApp {
   renderScores(scores, leaderName) { const list = this.$('#scoreList'); list.innerHTML = ''; const highest = scores.length ? Math.max(...scores.map(player => player.score)) : 0; scores.forEach(player => { const item = document.createElement('li'); if (player.score === highest && scores.length) item.classList.add('leader'); item.innerHTML = `<span><b>${player.name}</b> <small>#${player.number}</small></span><strong>${player.score}</strong>`; list.appendChild(item); }); if (leaderName) this.$('.scoreboard h2').textContent = `Scoreboard · ${leaderName}`; }
   clearCanvas() { this.canvas.state.paths = []; this.canvas.state.redoStack = []; this.canvas.redraw(); }
   setupToolbar() {
-    const PALETTE = ['#171a26', '#ffffff', '#6d7cff', '#56d5a2', '#ff7183', '#ffb454', '#4dd0e1', '#f06292', '#ba68c8', '#a1887f'];
+    const PALETTE = ['#171a26', '#ffffff', '#6d7cff', '#56d5a2', '#ff7183', '#ffb454', '#4dd0e1', '#f06292', '#ba68c8', '#a1887f', '#ffd54f', '#26c6da', '#ef5350', '#8bc34a', '#7986cb', '#ff8a65'];
     const palette = this.$('#colorPalette');
+    const markSwatch = color => palette.querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === color));
     PALETTE.forEach(color => {
       const swatch = document.createElement('button');
-      swatch.type = 'button'; swatch.className = 'swatch'; swatch.style.background = color; swatch.title = color;
-      swatch.addEventListener('click', () => { this.$('#colorPicker').value = color; });
+      swatch.type = 'button'; swatch.className = 'swatch'; swatch.style.background = color; swatch.title = color; swatch.dataset.color = color;
+      swatch.addEventListener('click', () => { this.$('#colorPicker').value = color; markSwatch(color); });
       palette.appendChild(swatch);
     });
+    this.$('#colorPicker').addEventListener('input', event => markSwatch(event.target.value));
+    markSwatch(this.$('#colorPicker').value);
     document.querySelectorAll('.tool:not(#fillToggle)').forEach(tool => tool.addEventListener('click', event => { document.querySelector('.tool.active:not(#fillToggle)')?.classList.remove('active'); event.currentTarget.classList.add('active'); }));
     this.$('#fillToggle').addEventListener('click', event => event.currentTarget.classList.toggle('active'));
     this.$('#strokeWidth').addEventListener('input', event => this.$('.stroke-value').textContent = `${event.target.value}px`);
-    this.$('#undo').addEventListener('click', () => { this.canvas.undo(); this.wsClient.sendUndo(this.room); }); this.$('#redo').addEventListener('click', () => { this.canvas.redo(); this.wsClient.sendRedo(this.room); });
+    this.$('#undo').addEventListener('click', () => { this.canvas.undo(); this.wsClient.sendUndo(this.room); });
+    this.$('#redo').addEventListener('click', () => { this.canvas.redo(); this.wsClient.sendRedo(this.room); });
+    this.$('#clearCanvas').addEventListener('click', () => { this.canvas.clearAll(); this.wsClient.socket.emit('clear'); });
+    this.$('#downloadCanvas').addEventListener('click', () => { const link = document.createElement('a'); link.download = 'draw-guess.png'; link.href = this.canvas.canvas.toDataURL('image/png'); link.click(); });
   }
   setupCursorTracking() { let waiting = false; document.addEventListener('mousemove', event => { if (waiting) return; waiting = true; setTimeout(() => { const rect = this.$('#drawingCanvas').getBoundingClientRect(); const x = event.clientX - rect.left, y = event.clientY - rect.top; if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) this.wsClient.sendCursorMove(this.room, x, y); waiting = false; }, 30); }); }
   updateUserCursor(id, x, y) { if (id === this.myId) return; let cursor = this.userCursors.get(id); if (!cursor) { cursor = document.createElement('div'); cursor.className = 'user-cursor'; const name = this.playerNames.get(id) || 'Player'; cursor.innerHTML = '<div class="cursor-pointer"></div><div class="cursor-name"></div>'; cursor.querySelector('.cursor-name').textContent = name; this.$('.canvas-container').appendChild(cursor); this.userCursors.set(id, cursor); } cursor.style.transform = `translate(${x}px, ${y}px)`; }

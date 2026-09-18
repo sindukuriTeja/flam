@@ -105,6 +105,12 @@ io.on('connection', (socket: Socket) => {
     if (currentRoom && data) socket.to(currentRoom).emit('cursorMove', { userId: socket.id, x: data.x, y: data.y });
   });
   socket.on('ping', () => socket.emit('pong'));
+  socket.on('clear', () => {
+    if (!currentRoom) return;
+    const room = getOrCreateRoom(currentRoom);
+    room.paths = [];
+    io.to(currentRoom).emit('canvasCleared', {});
+  });
 
   socket.on('startRound', () => {
     if (!currentRoom) return;
