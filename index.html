@@ -1,102 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collaborative Canvas</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draw & Guess</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"><link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <div class="toolbar">
-            <div class="toolbar-section tools">
-                <div class="tool-group drawing-tools">
-                    <button id="brush" class="tool active" title="Brush Tool (B)">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
-                            <path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
-                    </button>
-                    <button id="eraser" class="tool" title="Eraser Tool (E)">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 8h-9l-7 7v5h7v-2h4v2h5v-5l-7-7h7z"/>
-                        </svg>
-                    </button>
-                </div>
+  <div class="app-container">
+    <header class="toolbar">
+      <div class="toolbar-section tools">
+        <div class="tool-group drawing-tools"><button id="brush" class="tool active" title="Brush"><span>✎</span></button><button id="eraser" class="tool" title="Eraser"><span>⌫</span></button></div>
+        <div class="tool-group color-tools"><div class="color-tool"><label for="colorPicker">Color</label><input type="color" id="colorPicker" value="#171a26"></div><div class="stroke-tool"><label for="strokeWidth">Stroke</label><input type="range" id="strokeWidth" min="1" max="50" value="5"><span class="stroke-value">5px</span></div></div>
+        <div class="tool-group history-tools"><button id="undo" class="action" title="Undo">↶</button><button id="redo" class="action" title="Redo">↷</button></div>
+      </div>
+      <div class="toolbar-section status"><div class="connection-status offline"><span class="status-indicator"></span><span class="status-text">Offline</span></div><div class="metrics"><span class="fps">0 FPS</span><span class="latency">0ms</span></div><div class="room-controls"><button id="newRoomBtn" class="action primary">New Room</button><button id="shareRoomBtn" class="action">Share</button><div class="room-info"><span class="room-id"></span><span class="online-users">0 players</span></div></div></div>
+    </header>
 
-                <div class="tool-group color-tools">
-                    <div class="color-tool">
-                        <label for="colorPicker">Color</label>
-                        <input type="color" id="colorPicker" value="#000000" title="Choose color (C)">
-                    </div>
-                    <div class="stroke-tool">
-                        <label for="strokeWidth">Stroke</label>
-                        <input type="range" id="strokeWidth" min="1" max="50" value="5" title="Adjust stroke width">
-                        <span class="stroke-value">5px</span>
-                    </div>
-                </div>
-
-                <div class="tool-group history-tools">
-                    <button id="undo" class="action" title="Undo (Ctrl+Z)">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 7v6h6"/>
-                            <path d="M3 13c0-4.97 4.03-9 9-9a8.94 8.94 0 0 1 7.84 4.75"/>
-                        </svg>
-                    </button>
-                    <button id="redo" class="action" title="Redo (Ctrl+Y)">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 7v6h-6"/>
-                            <path d="M21 13c0-4.97-4.03-9-9-9a8.94 8.94 0 0 0-7.84 4.75"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div class="toolbar-section status">
-                <div class="status-group">
-                    <div class="connection-status offline">
-                        <span class="status-indicator"></span>
-                        <span class="status-text">Offline</span>
-                    </div>
-                    <div class="metrics">
-                        <span class="fps" title="Frames Per Second">0 FPS</span>
-                        <span class="latency" title="Network Latency">0ms</span>
-                    </div>
-                </div>
-
-                <div class="room-controls">
-                    <button id="newRoomBtn" class="action primary" title="Create New Room">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3h7v7H3z"/>
-                            <path d="M14 3h7v7h-7z"/>
-                            <path d="M14 14h7v7h-7z"/>
-                            <path d="M3 14h7v7H3z"/>
-                        </svg>
-                        <span>New Room</span>
-                    </button>
-                    <button id="shareRoomBtn" class="action" title="Share Room Link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                            <polyline points="16 6 12 2 8 6"/>
-                            <line x1="12" y1="2" x2="12" y2="15"/>
-                        </svg>
-                        <span>Share</span>
-                    </button>
-                    <div class="room-info">
-                        <span class="room-id"></span>
-                        <div class="online-users"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="canvas-container">
-            <canvas id="drawingCanvas"></canvas>
-        </div>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script type="module" src="main.js"></script>
+    <main class="game-layout">
+      <aside class="game-panel">
+        <div class="game-brand"><span>✦</span><div><h1>Draw &amp; Guess</h1><p>Pictionary with friends</p></div></div>
+        <div class="round-meta"><div><small>ROUND</small><strong id="roundNumber">—</strong></div><div class="timer" id="roundTimer">01:00</div></div>
+        <div class="drawer-card"><small>CURRENT DRAWER</small><strong id="currentDrawer">Waiting for players</strong></div>
+        <div id="gamePrompt" class="game-prompt">Invite a friend to start a game.</div>
+        <form id="wordForm" class="game-form hidden"><label for="secretWordInput">Your secret word</label><div class="input-row"><input id="secretWordInput" maxlength="80" placeholder="Type anything to draw" autocomplete="off"><button id="surpriseBtn" type="button" class="action" title="Choose a surprise word">🎲</button></div><button class="game-button" type="submit">Start drawing</button></form>
+        <form id="guessForm" class="game-form hidden"><label for="guessInput">Your guess</label><div class="input-row"><input id="guessInput" maxlength="80" placeholder="What is it?" autocomplete="off"><button class="game-button" type="submit">Guess</button></div></form>
+        <div id="announcement" class="announcement" aria-live="polite">Waiting for the next round.</div>
+        <div class="game-actions"><button id="startRoundBtn" class="game-button">Start Round</button><button id="endGameBtn" class="action danger">End Game</button></div>
+        <section class="scoreboard"><div class="section-heading"><h2>Scoreboard</h2><span id="playerCount">0 players</span></div><ol id="scoreList"></ol></section>
+      </aside>
+      <section class="canvas-container"><canvas id="drawingCanvas"></canvas></section>
+    </main>
+  </div>
+  <script src="/socket.io/socket.io.js"></script><script type="module" src="main.js"></script>
 </body>
 </html>

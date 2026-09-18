@@ -1,243 +1,58 @@
 import { Canvas } from './canvas.js';
 import { WebSocketClient } from './websocket.js';
 
+const WORDS = ['alligator','ant','bear','butterfly','cat','dolphin','elephant','flamingo','giraffe','kangaroo','lion','monkey','octopus','panda','penguin','rabbit','shark','tiger','turtle','zebra','apple','banana','birthday cake','bread','burger','carrot','cheese','cookie','donut','ice cream','lemon','pizza','popcorn','strawberry','sushi','taco','watermelon','backpack','balloon','bicycle','book','camera','candle','castle','chair','clock','computer','crown','drum','guitar','hammer','key','kite','ladder','lamp','pencil','phone','robot','rocket','scissors','snowman','toothbrush','train','umbrella','volcano','airplane','beach','bridge','circus','farm','forest','hospital','library','mountain','museum','playground','school','space','zoo','climbing','cooking','dancing','fishing','jumping','painting','running','singing','sleeping','swimming'];
+
 class CollaborativeDrawingApp {
-    constructor() {
-        this.room = this.getOrCreateRoomId();
-        this.wsClient = new WebSocketClient();
-        this.canvas = new Canvas('drawingCanvas', this.wsClient.getUserId());
-        this.userCursors = new Map();
-
-        this.setupWebSocket();
-        this.setupToolbar();
-        this.setupCursorTracking();
-        this.setupRoomControls();
-        this.updateRoomDisplay();
-    }
-
-    getOrCreateRoomId() {
-        // Get room ID from URL or create a new one
-        const urlParams = new URLSearchParams(window.location.search);
-        let roomId = urlParams.get('room');
-        
-        if (!roomId) {
-            roomId = Math.random().toString(36).substring(2, 15);
-            window.history.pushState({}, '', `?room=${roomId}`);
-        }
-        
-        return roomId;
-    }
-
-    setupWebSocket() {
-        // Join room
-        this.wsClient.joinRoom(this.room);
-
-        // Update connection status
-        const updateConnectionStatus = (isConnected) => {
-            const statusEl = document.querySelector('.connection-status');
-            if (statusEl) {
-                statusEl.className = `connection-status ${isConnected ? 'online' : 'offline'}`;
-                statusEl.textContent = isConnected ? '⚫ Online' : '⚫ Offline';
-            }
-        };
-
-        this.wsClient.socket.on('connect', () => updateConnectionStatus(true));
-        this.wsClient.socket.on('disconnect', () => updateConnectionStatus(false));
-        this.wsClient.socket.on('connect_error', () => updateConnectionStatus(false));
-
-        // Handle incoming drawing events
-        this.wsClient.onDraw((data) => {
-            this.canvas.applyPath(data.path);
-        });
-
-        // Handle undo/redo events
-        this.wsClient.onUndo(() => {
-            console.log('Client received undo event');
-            this.canvas.undo();
-        });
-
-        this.wsClient.onRedo(() => {
-            console.log('Client received redo event');
-            this.canvas.redo();
-        });
-
-        // Handle cursor movement
-        this.wsClient.onCursorMove((data) => {
-            this.updateUserCursor(data.userId, data.x, data.y);
-        });
-
-        // Handle user join events
-        this.wsClient.onUserJoin((data) => {
-            this.updateOnlineUsers(data.userCount);
-        });
-
-        // Handle initial room state
-        this.wsClient.onRoomState((state) => {
-            state.paths.forEach(path => {
-                this.canvas.applyPath(path);
-            });
-        });
-
-        // Set up canvas draw callback
-        this.canvas.setOnDrawCallback((path) => {
-            this.wsClient.sendDraw(this.room, path);
-        });
-    }
-
-    setupToolbar() {
-        // Tool selection
-        document.querySelectorAll('.tool').forEach(tool => {
-            tool.addEventListener('click', (e) => {
-                document.querySelector('.tool.active')?.classList.remove('active');
-                e.target.classList.add('active');
-                
-                // Reset color picker when switching to eraser
-                const colorPicker = document.getElementById('colorPicker');
-                if (e.target.id === 'eraser') {
-                    colorPicker.dataset.lastColor = colorPicker.value;
-                } else if (e.target.id === 'brush') {
-                    if (colorPicker.dataset.lastColor) {
-                        colorPicker.value = colorPicker.dataset.lastColor;
-                    }
-                }
-            });
-        });
-
-        // Color Picker
-        const colorPicker = document.getElementById('colorPicker');
-        colorPicker.addEventListener('input', (e) => {
-            const activeTool = document.querySelector('.tool.active');
-            if (activeTool?.id === 'brush') {
-                colorPicker.dataset.lastColor = e.target.value;
-            }
-        });
-
-        // Stroke Width
-        const strokeWidth = document.getElementById('strokeWidth');
-        const strokeValue = document.querySelector('.stroke-value');
-        strokeWidth.addEventListener('input', (e) => {
-            strokeValue.textContent = `${e.target.value}px`;
-        });
-
-        // Undo/Redo
-        document.getElementById('undo')?.addEventListener('click', () => {
-            console.log('Undo button clicked');
-            this.canvas.undo();
-            this.wsClient.sendUndo(this.room);
-        });
-
-        document.getElementById('redo')?.addEventListener('click', () => {
-            console.log('Redo button clicked');
-            this.canvas.redo();
-            this.wsClient.sendRedo(this.room);
-        });
-    }
-
-    setupCursorTracking() {
-        let throttleTimeout;
-        document.addEventListener('mousemove', (e) => {
-            if (throttleTimeout) return;
-
-            throttleTimeout = setTimeout(() => {
-                const canvasRect = document.getElementById('drawingCanvas').getBoundingClientRect();
-                const x = e.clientX - canvasRect.left;
-                const y = e.clientY - canvasRect.top;
-                
-                if (x >= 0 && x <= canvasRect.width && y >= 0 && y <= canvasRect.height) {
-                    this.wsClient.sendCursorMove(this.room, x, y);
-                }
-                throttleTimeout = null;
-            }, 16); // Roughly 60fps
-        });
-    }
-
-    updateUserCursor(userId, x, y) {
-        if (userId === this.wsClient.getUserId()) return;
-
-        let cursor = this.userCursors.get(userId);
-        if (!cursor) {
-            cursor = this.createUserCursor(userId);
-            this.userCursors.set(userId, cursor);
-        }
-
-        cursor.style.transform = `translate(${x}px, ${y}px)`;
-    }
-
-    createUserCursor(userId) {
-        const cursor = document.createElement('div');
-        cursor.className = 'user-cursor';
-        
-        const pointer = document.createElement('div');
-        pointer.className = 'cursor-pointer';
-        pointer.style.backgroundColor = this.getRandomColor();
-        
-        const label = document.createElement('div');
-        label.className = 'cursor-name';
-        label.textContent = `User ${userId.slice(0, 4)}`;
-        
-        cursor.appendChild(pointer);
-        cursor.appendChild(label);
-        document.querySelector('.canvas-container')?.appendChild(cursor);
-        
-        return cursor;
-    }
-
-    updateOnlineUsers(count) {
-        const usersElement = document.querySelector('.online-users');
-        if (usersElement) {
-            usersElement.textContent = `${count} user${count !== 1 ? 's' : ''} online`;
-        }
-    }
-
-    getRandomColor() {
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }
-
-    setupRoomControls() {
-        // Create new room
-        document.getElementById('newRoomBtn')?.addEventListener('click', () => {
-            const newRoomId = Math.random().toString(36).substring(2, 15);
-            window.location.href = `${window.location.origin}?room=${newRoomId}`;
-        });
-
-        // Share room
-        document.getElementById('shareRoomBtn')?.addEventListener('click', () => {
-            const roomUrl = `${window.location.origin}?room=${this.room}`;
-            navigator.clipboard.writeText(roomUrl).then(() => {
-                this.showToast('Room link copied to clipboard!');
-            }).catch(() => {
-                this.showToast('Failed to copy link. URL: ' + roomUrl);
-            });
-        });
-    }
-
-    updateRoomDisplay() {
-        const roomIdElement = document.querySelector('.room-id');
-        if (roomIdElement) {
-            roomIdElement.textContent = `Room: ${this.room}`;
-        }
-    }
-
-    showToast(message, duration = 3000) {
-        let toast = document.querySelector('.toast');
-        
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.className = 'toast';
-            document.body.appendChild(toast);
-        }
-
-        toast.textContent = message;
-        toast.classList.add('show');
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, duration);
-    }
+  constructor() {
+    this.room = this.getOrCreateRoomId(); this.wsClient = new WebSocketClient(); this.canvas = new Canvas('drawingCanvas', this.wsClient.getUserId());
+    this.userCursors = new Map(); this.myId = null; this.drawerId = null; this.timerInterval = null;
+    this.setupWebSocket(); this.setupToolbar(); this.setupCursorTracking(); this.setupRoomControls(); this.setupGameControls(); this.updateRoomDisplay();
+  }
+  getOrCreateRoomId() { const params = new URLSearchParams(location.search); let room = params.get('room'); if (!room) { room = Math.random().toString(36).slice(2, 15); history.replaceState({}, '', `?room=${room}`); } return room; }
+  $(selector) { return document.querySelector(selector); }
+  setAnnouncement(message) { this.$('#announcement').textContent = message; }
+  setupWebSocket() {
+    this.wsClient.joinRoom(this.room);
+    const updateStatus = connected => { const el = this.$('.connection-status'); el.className = `connection-status ${connected ? 'online' : 'offline'}`; el.querySelector('.status-text').textContent = connected ? 'Online' : 'Offline'; };
+    this.wsClient.socket.on('connect', () => { this.myId = this.wsClient.getUserId(); updateStatus(true); this.wsClient.joinRoom(this.room); });
+    this.wsClient.socket.on('disconnect', () => updateStatus(false)); this.wsClient.socket.on('connect_error', () => updateStatus(false));
+    this.wsClient.onDraw(data => this.canvas.applyPath(data.path)); this.wsClient.onUndo(() => this.canvas.undo()); this.wsClient.onRedo(() => this.canvas.redo());
+    this.wsClient.onCursorMove(data => this.updateUserCursor(data.userId, data.x, data.y)); this.wsClient.onUserJoin(data => this.updateOnlineUsers(data.userCount));
+    this.wsClient.onRoomState(state => state.paths.forEach(path => this.canvas.applyPath(path)));
+    this.wsClient.socket.on('playersUpdated', data => { this.updateOnlineUsers(data.count); this.renderPlayers(data.players); });
+    this.wsClient.socket.on('scoreboard', data => this.renderScores(data.scores, data.leaderName));
+    this.wsClient.socket.on('roundStarted', data => this.roundStarted(data));
+    this.wsClient.socket.on('secretWord', word => { if (this.drawerId === this.myId && word) this.setAnnouncement(`Your word is “${word}”. Draw it before time runs out!`); });
+    this.wsClient.socket.on('wordSubmitted', () => { this.$('#guessForm').classList.remove('hidden'); this.setAnnouncement('The drawing has begun — make your best guess!'); });
+    this.wsClient.socket.on('guessResult', data => { if (!data.correct) this.setAnnouncement('Not quite — keep guessing!'); });
+    this.wsClient.socket.on('canvasCleared', () => this.clearCanvas());
+    this.wsClient.socket.on('roundEnded', data => { this.stopTimer(); this.drawerId = null; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.setAnnouncement(data.guesserName ? `${data.guesserName} guessed it! The word was “${data.word}”.` : `Time is up! The word was “${data.word}”.`); this.renderScores(data.scores); });
+    this.wsClient.socket.on('gameOver', data => { this.stopTimer(); this.setAnnouncement(`Game over! Winner: ${data.winnerName}.`); this.renderScores(data.scores); });
+    this.canvas.setOnDrawCallback(path => this.wsClient.sendDraw(this.room, path));
+  }
+  setupGameControls() {
+    this.$('#startRoundBtn').addEventListener('click', () => this.wsClient.socket.emit('startRound'));
+    this.$('#endGameBtn').addEventListener('click', () => this.wsClient.socket.emit('endGame'));
+    this.$('#wordForm').addEventListener('submit', event => { event.preventDefault(); const input = this.$('#secretWordInput'); if (input.value.trim()) { this.wsClient.socket.emit('submitWord', input.value); this.$('#wordForm').classList.add('hidden'); this.setAnnouncement('Draw it before time runs out!'); } });
+    this.$('#guessForm').addEventListener('submit', event => { event.preventDefault(); const input = this.$('#guessInput'); if (input.value.trim()) { this.wsClient.socket.emit('guess', input.value); input.value = ''; } });
+    this.$('#surpriseBtn').addEventListener('click', () => { this.$('#secretWordInput').value = WORDS[Math.floor(Math.random() * WORDS.length)]; });
+  }
+  roundStarted(data) { this.drawerId = data.drawerId; this.$('#roundNumber').textContent = data.roundNumber; this.$('#currentDrawer').textContent = data.drawerName; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.$('#secretWordInput').value = ''; this.$('#guessInput').value = ''; this.startTimer(data.timerSeconds); if (data.drawerId === this.myId) { this.$('#wordForm').classList.remove('hidden'); this.setAnnouncement('You are the drawer — enter a secret word.'); } else this.setAnnouncement(`${data.drawerName} is choosing a word…`); }
+  startTimer(seconds) { this.stopTimer(); let left = seconds; const render = () => { this.$('#roundTimer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; }; render(); this.timerInterval = setInterval(() => { left = Math.max(0, left - 1); render(); if (!left) this.stopTimer(); }, 1000); }
+  stopTimer() { if (this.timerInterval) clearInterval(this.timerInterval); this.timerInterval = null; }
+  renderPlayers(players) { this.$('#playerCount').textContent = `${players.length} player${players.length === 1 ? '' : 's'}`; const current = players.find(player => player.id === this.drawerId); if (current) this.$('#currentDrawer').textContent = current.name; }
+  renderScores(scores, leaderName) { const list = this.$('#scoreList'); list.innerHTML = ''; const highest = scores.length ? Math.max(...scores.map(player => player.score)) : 0; scores.forEach(player => { const item = document.createElement('li'); if (player.score === highest && scores.length) item.classList.add('leader'); item.innerHTML = `<span><b>${player.name}</b> <small>#${player.number}</small></span><strong>${player.score}</strong>`; list.appendChild(item); }); if (leaderName) this.$('.scoreboard h2').textContent = `Scoreboard · ${leaderName}`; }
+  clearCanvas() { this.canvas.state.paths = []; this.canvas.state.redoStack = []; this.canvas.redraw(); }
+  setupToolbar() {
+    document.querySelectorAll('.tool').forEach(tool => tool.addEventListener('click', event => { document.querySelector('.tool.active')?.classList.remove('active'); event.currentTarget.classList.add('active'); }));
+    this.$('#strokeWidth').addEventListener('input', event => this.$('.stroke-value').textContent = `${event.target.value}px`);
+    this.$('#undo').addEventListener('click', () => { this.canvas.undo(); this.wsClient.sendUndo(this.room); }); this.$('#redo').addEventListener('click', () => { this.canvas.redo(); this.wsClient.sendRedo(this.room); });
+  }
+  setupCursorTracking() { let waiting = false; document.addEventListener('mousemove', event => { if (waiting) return; waiting = true; setTimeout(() => { const rect = this.$('#drawingCanvas').getBoundingClientRect(); const x = event.clientX - rect.left, y = event.clientY - rect.top; if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) this.wsClient.sendCursorMove(this.room, x, y); waiting = false; }, 30); }); }
+  updateUserCursor(id, x, y) { if (id === this.myId) return; let cursor = this.userCursors.get(id); if (!cursor) { cursor = document.createElement('div'); cursor.className = 'user-cursor'; cursor.innerHTML = '<div class="cursor-pointer"></div><div class="cursor-name">Player</div>'; this.$('.canvas-container').appendChild(cursor); this.userCursors.set(id, cursor); } cursor.style.transform = `translate(${x}px, ${y}px)`; }
+  updateOnlineUsers(count) { this.$('.online-users').textContent = `${count} player${count === 1 ? '' : 's'} online`; }
+  setupRoomControls() { this.$('#newRoomBtn').addEventListener('click', () => location.href = `${location.origin}?room=${Math.random().toString(36).slice(2, 15)}`); this.$('#shareRoomBtn').addEventListener('click', () => navigator.clipboard.writeText(`${location.origin}?room=${this.room}`).then(() => this.setAnnouncement('Room link copied!'))); }
+  updateRoomDisplay() { this.$('.room-id').textContent = `Room: ${this.room}`; }
 }
-
-// Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    new CollaborativeDrawingApp();
-});
+document.addEventListener('DOMContentLoaded', () => new CollaborativeDrawingApp());
