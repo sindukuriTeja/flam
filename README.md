@@ -1,6 +1,18 @@
-# Collaborative Drawing Canvas
+# Collaborative Drawing Canvas — Draw & Guess
 
-A real-time collaborative drawing application where multiple users can draw together on a shared canvas. Built with Node.js, Express, Socket.IO, and TypeScript.
+A real-time multiplayer **Draw & Guess (Pictionary-style) game** built on a collaborative drawing canvas. Friends join a room, a random player is chosen as the drawer, they type a secret word only they can see, draw it, and everyone else races to guess — the first correct guesser scores 10 points. Built with Node.js, Express, Socket.IO, and TypeScript.
+
+## How the game works
+
+1. **Join a room** — each player gets a player number (1, 2, 3…)
+2. **Start a round** — a random number picks this round's drawer
+3. **Drawer types the word** — saved secretly on the server, only the drawer sees it (or hit "Surprise me" for a random word from 100+ built-in words)
+4. **Drawer draws** — everyone sees the drawing live in real time
+5. **Everyone else guesses** — the **first correct guesser gets 10 points**
+6. **Round ends** — the word is revealed, the scoreboard updates, and a new random drawer is picked
+7. **End the game** — the highest scorer wins (ties are handled)
+
+Rounds have a 60-second timer; if time runs out, the word is revealed and no points are awarded.
 
 ![Collaborative Drawing Canvas](https://img.shields.io/badge/Real--Time-Collaboration-blue) ![Node.js](https://img.shields.io/badge/Node.js-18+-green) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue) ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8+-black)
 
