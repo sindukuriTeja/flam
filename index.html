@@ -17,6 +17,7 @@
     </header>
 
     <main class="game-layout">
+      <section class="canvas-container"><canvas id="drawingCanvas"></canvas></section>
       <aside class="game-panel">
         <div class="game-brand"><span>✦</span><div><h1>Draw &amp; Guess</h1><p>Pictionary with friends</p></div></div>
         <div class="round-meta"><div><small>ROUND</small><strong id="roundNumber">—</strong></div><div class="timer" id="roundTimer">01:00</div></div>
@@ -28,7 +29,6 @@
         <div class="game-actions"><button id="startRoundBtn" class="game-button">Start Round</button><button id="endGameBtn" class="action danger">End Game</button></div>
         <section class="scoreboard"><div class="section-heading"><h2>Scoreboard</h2><span id="playerCount">0 players</span></div><ol id="scoreList"></ol></section>
       </aside>
-      <section class="canvas-container"><canvas id="drawingCanvas"></canvas></section>
     </main>
   </div>
   <div id="loginOverlay" class="login-overlay">
