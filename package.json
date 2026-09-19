@@ -1,6 +1,6 @@
 {
     "name": "collaborative-drawing-canvas",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "Real-time multiplayer Draw & Guess (Pictionary) game",
     "main": "index.js",
     "scripts": {

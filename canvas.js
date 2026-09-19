@@ -47,7 +47,7 @@ class Canvas {
     }
 
     isShapeTool(tool) {
-        return ['rectangle', 'circle', 'triangle', 'diamond', 'line', 'arrow', 'heart'].includes(tool);
+        return ['rectangle', 'circle', 'triangle', 'diamond', 'line', 'arrow', 'heart', 'star'].includes(tool);
     }
 
     startDrawing(e) {
@@ -140,9 +140,9 @@ class Canvas {
             return;
         }
 
-        if (path.tool === 'marker') {
-            ctx.globalAlpha = 0.45;
-            ctx.lineWidth = path.width * 2.4;
+        if (path.tool === 'marker' || path.tool === 'highlighter') {
+            ctx.globalAlpha = path.tool === 'highlighter' ? 0.3 : 0.45;
+            ctx.lineWidth = path.width * (path.tool === 'highlighter' ? 3.2 : 2.4);
         }
 
         if (path.points.length < 2) {
@@ -202,6 +202,18 @@ class Canvas {
                 ctx.bezierCurveTo(x, y + h * 0.62, cx, y + h * 0.82, cx, y + h);
                 ctx.bezierCurveTo(cx, y + h * 0.82, x + w, y + h * 0.62, x + w, y + h * 0.32);
                 ctx.bezierCurveTo(x + w, y, cx, y, cx, y + h * 0.32);
+                ctx.closePath();
+                break;
+            }
+            case 'star': {
+                const cx = x + w / 2, cy = y + h / 2;
+                const outer = Math.min(w, h) / 2, inner = outer * 0.42;
+                for (let i = 0; i < 10; i++) {
+                    const r = i % 2 === 0 ? outer : inner;
+                    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+                    const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
                 ctx.closePath();
                 break;
             }
@@ -269,7 +281,7 @@ class Canvas {
     }
 
     getCurrentTool() {
-        return document.querySelector('.tool.active')?.id || 'brush';
+        return document.querySelector('.tool.active:not(#fillToggle)')?.id || 'brush';
     }
 
     getColor() {
