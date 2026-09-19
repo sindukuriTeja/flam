@@ -15,14 +15,14 @@ class WebSocketClient {
         this.onRoomStateCallback = null;
         this.onErrorCallback = null;
         this.isConnected = false;
-        
+
         // Performance metrics
         this.lastPingTime = 0;
         this.latency = 0;
         this.fps = 0;
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
-        this.fpsUpdateInterval = 1000; // Update FPS every second
+        this.fpsUpdateInterval = 1000;
 
         this.setupSocketHandlers();
         this.startPerformanceMonitoring();
@@ -32,26 +32,14 @@ class WebSocketClient {
         this.socket.on('connect', () => {
             this.isConnected = true;
             console.log('Connected to server');
-            // Try to reconnect with WebSocket transport if initially connected via polling
-            if (this.socket.io.engine.transport.name === 'polling') {
-                this.socket.io.engine.transport.on('upgrade', () => {
-                    console.log('Upgraded transport to WebSocket');
-                });
-            }
         });
 
         this.socket.on('connect_error', (error) => {
             this.isConnected = false;
             console.error('Connection error:', error);
             if (this.onErrorCallback) this.onErrorCallback('connection', error);
-            
-            // Try to reconnect with polling if WebSocket fails
-            if (this.socket.io.engine.transport.name === 'websocket') {
-                this.socket.io.opts.transports = ['polling', 'websocket'];
-            }
         });
 
-        // Performance monitoring
         this.socket.on('pong', () => {
             this.latency = Date.now() - this.lastPingTime;
             this.updateMetricsDisplay();
@@ -67,27 +55,11 @@ class WebSocketClient {
         });
 
         this.socket.on('undoPath', (data) => {
-            try {
-                console.log('Received undo event:', data);
-                if (this.onUndoCallback) {
-                    this.onUndoCallback();
-                }
-            } catch (error) {
-                console.error('Error handling undo event:', error);
-                if (this.onErrorCallback) this.onErrorCallback('undo', error);
-            }
+            if (this.onUndoCallback) this.onUndoCallback(data);
         });
 
         this.socket.on('redoPath', (data) => {
-            try {
-                console.log('Received redo event:', data);
-                if (this.onRedoCallback) {
-                    this.onRedoCallback();
-                }
-            } catch (error) {
-                console.error('Error handling redo event:', error);
-                if (this.onErrorCallback) this.onErrorCallback('redo', error);
-            }
+            if (this.onRedoCallback) this.onRedoCallback(data);
         });
 
         this.socket.on('cursorMove', (data) => {
@@ -104,11 +76,8 @@ class WebSocketClient {
     }
 
     joinRoom(roomId, name) {
-        if (name) {
-            this.socket.emit('joinRoom', { roomId, name });
-        } else {
-            this.socket.emit('joinRoom', roomId);
-        }
+        if (name) this.socket.emit('joinRoom', { roomId, name });
+        else this.socket.emit('joinRoom', roomId);
     }
 
     sendDraw(roomId, path) {
@@ -116,12 +85,10 @@ class WebSocketClient {
     }
 
     sendUndo(roomId) {
-        console.log('Sending undo request for room:', roomId);
         this.socket.emit('undo', roomId);
     }
 
     sendRedo(roomId) {
-        console.log('Sending redo request for room:', roomId);
         this.socket.emit('redo', roomId);
     }
 
@@ -129,56 +96,34 @@ class WebSocketClient {
         this.socket.emit('cursorMove', { roomId, x, y });
     }
 
-    onDraw(callback) {
-        this.onDrawCallback = callback;
-    }
-
-    onUndo(callback) {
-        this.onUndoCallback = callback;
-    }
-
-    onRedo(callback) {
-        this.onRedoCallback = callback;
-    }
-
-    onCursorMove(callback) {
-        this.onCursorMoveCallback = callback;
-    }
-
-    onUserJoin(callback) {
-        this.onUserJoinCallback = callback;
-    }
-
-    onRoomState(callback) {
-        this.onRoomStateCallback = callback;
-    }
+    onDraw(callback) { this.onDrawCallback = callback; }
+    onUndo(callback) { this.onUndoCallback = callback; }
+    onRedo(callback) { this.onRedoCallback = callback; }
+    onCursorMove(callback) { this.onCursorMoveCallback = callback; }
+    onUserJoin(callback) { this.onUserJoinCallback = callback; }
+    onRoomState(callback) { this.onRoomStateCallback = callback; }
 
     getUserId() {
         return this.socket.id;
     }
 
     startPerformanceMonitoring() {
-        // FPS monitoring
         let lastFpsUpdate = performance.now();
-        
+
         const updateMetrics = () => {
             const now = performance.now();
             this.frameCount++;
-
-            // Update FPS every second
             if (now - lastFpsUpdate >= this.fpsUpdateInterval) {
                 this.fps = Math.round((this.frameCount * 1000) / (now - lastFpsUpdate));
                 this.frameCount = 0;
                 lastFpsUpdate = now;
                 this.updateMetricsDisplay();
             }
-
             requestAnimationFrame(updateMetrics);
         };
 
         requestAnimationFrame(updateMetrics);
 
-        // Latency monitoring
         setInterval(() => {
             this.lastPingTime = Date.now();
             this.socket.emit('ping');
@@ -188,18 +133,18 @@ class WebSocketClient {
     updateMetricsDisplay() {
         const fpsElement = document.querySelector('.fps');
         const latencyElement = document.querySelector('.latency');
-        
+
         if (fpsElement) {
             fpsElement.textContent = `${this.fps} FPS`;
-            fpsElement.style.color = this.fps >= 30 ? '#4CAF50' : '#f44336';
+            fpsElement.style.color = this.fps >= 30 ? '#56d5a2' : '#ffb454';
         }
-        
+
         if (latencyElement) {
             latencyElement.textContent = `${this.latency}ms`;
-            latencyElement.style.color = this.latency <= 100 ? '#4CAF50' : '#f44336';
+            // green < 100ms, amber 100-250ms, red > 250ms
+            latencyElement.style.color = this.latency <= 100 ? '#56d5a2' : this.latency <= 250 ? '#ffb454' : '#ff7183';
         }
     }
 }
 
-// Export the WebSocketClient class
 export { WebSocketClient };

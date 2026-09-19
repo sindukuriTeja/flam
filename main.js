@@ -14,19 +14,26 @@ class CollaborativeDrawingApp {
   setAnnouncement(message) { this.$('#announcement').textContent = message; }
   setupWebSocket() {
     const updateStatus = connected => { const el = this.$('.connection-status'); el.className = `connection-status ${connected ? 'online' : 'offline'}`; el.querySelector('.status-text').textContent = connected ? 'Online' : 'Offline'; };
-    this.wsClient.socket.on('connect', () => { this.myId = this.wsClient.getUserId(); updateStatus(true); if (this.myName) this.wsClient.joinRoom(this.room, this.myName); });
+    this.wsClient.socket.on('connect', () => {
+      this.myId = this.wsClient.getUserId();
+      this.canvas.userId = this.myId; // socket id only exists after connect
+      updateStatus(true);
+      if (this.myName) this.wsClient.joinRoom(this.room, this.myName);
+    });
     this.wsClient.socket.on('disconnect', () => updateStatus(false)); this.wsClient.socket.on('connect_error', () => updateStatus(false));
-    this.wsClient.onDraw(data => this.canvas.applyPath(data.path)); this.wsClient.onUndo(() => this.canvas.undo()); this.wsClient.onRedo(() => this.canvas.redo());
+    this.wsClient.onDraw(data => this.canvas.applyPath(data.path));
+    this.wsClient.onUndo(data => { if (data?.pathId) this.canvas.removePathById(data.pathId); });
+    this.wsClient.onRedo(data => { if (data?.path) this.canvas.applyPath(data.path); });
     this.wsClient.onCursorMove(data => this.updateUserCursor(data.userId, data.x, data.y)); this.wsClient.onUserJoin(data => this.updateOnlineUsers(data.userCount));
-    this.wsClient.onRoomState(state => state.paths.forEach(path => this.canvas.applyPath(path)));
+    this.wsClient.onRoomState(state => { this.canvas.clearAll(); (state.paths || []).forEach(path => this.canvas.applyPath(path)); });
     this.wsClient.socket.on('playersUpdated', data => { this.updateOnlineUsers(data.count); this.renderPlayers(data.players); });
     this.wsClient.socket.on('scoreboard', data => this.renderScores(data.scores, data.leaderName));
     this.wsClient.socket.on('roundStarted', data => this.roundStarted(data));
-    this.wsClient.socket.on('secretWord', word => { if (this.drawerId === this.myId && word) this.setAnnouncement(`Your word is “${word}”. Draw it before time runs out!`); });
-    this.wsClient.socket.on('wordSubmitted', () => { this.$('#guessForm').classList.remove('hidden'); this.setAnnouncement('The drawing has begun — make your best guess!'); });
-    this.wsClient.socket.on('guessResult', data => { if (!data.correct) this.setAnnouncement('Not quite — keep guessing!'); });
+    this.wsClient.socket.on('secretWord', word => { if (this.drawerId === this.myId && word) this.setAnnouncement(`Your word is \u201c${word}\u201d. Draw it before time runs out!`); });
+    this.wsClient.socket.on('wordSubmitted', () => { this.$('#guessForm').classList.remove('hidden'); this.setAnnouncement('The drawing has begun \u2014 make your best guess!'); });
+    this.wsClient.socket.on('guessResult', data => { if (!data.correct) this.setAnnouncement('Not quite \u2014 keep guessing!'); });
     this.wsClient.socket.on('canvasCleared', () => this.clearCanvas());
-    this.wsClient.socket.on('roundEnded', data => { this.stopTimer(); this.drawerId = null; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.setAnnouncement(data.guesserName ? `${data.guesserName} guessed it! The word was “${data.word}”.` : `Time is up! The word was “${data.word}”.`); this.renderScores(data.scores); });
+    this.wsClient.socket.on('roundEnded', data => { this.stopTimer(); this.drawerId = null; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.setAnnouncement(data.guesserName ? `${data.guesserName} guessed it! The word was \u201c${data.word}\u201d.` : `Time is up! The word was \u201c${data.word}\u201d.`); this.renderScores(data.scores); });
     this.wsClient.socket.on('gameOver', data => { this.stopTimer(); this.setAnnouncement(`Game over! Winner: ${data.winnerName}.`); this.renderScores(data.scores); });
     this.canvas.setOnDrawCallback(path => this.wsClient.sendDraw(this.room, path));
   }
@@ -46,8 +53,6 @@ class CollaborativeDrawingApp {
       this.setAnnouncement(`Welcome, ${name}! Invite a friend with the Share button.`);
     };
     form.addEventListener('submit', event => { event.preventDefault(); doJoin(); });
-    // If already connected, join immediately when the user submits
-    if (this.wsClient.socket.connected) { /* doJoin will emit joinRoom */ }
   }
   setupGameControls() {
     this.$('#startRoundBtn').addEventListener('click', () => this.wsClient.socket.emit('startRound'));
@@ -56,12 +61,41 @@ class CollaborativeDrawingApp {
     this.$('#guessForm').addEventListener('submit', event => { event.preventDefault(); const input = this.$('#guessInput'); if (input.value.trim()) { this.wsClient.socket.emit('guess', input.value); input.value = ''; } });
     this.$('#surpriseBtn').addEventListener('click', () => { this.$('#secretWordInput').value = WORDS[Math.floor(Math.random() * WORDS.length)]; });
   }
-  roundStarted(data) { this.drawerId = data.drawerId; this.$('#roundNumber').textContent = data.roundNumber; this.$('#currentDrawer').textContent = data.drawerName; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.$('#secretWordInput').value = ''; this.$('#guessInput').value = ''; this.startTimer(data.timerSeconds); if (data.drawerId === this.myId) { this.$('#wordForm').classList.remove('hidden'); this.setAnnouncement('You are the drawer — enter a secret word.'); } else this.setAnnouncement(`${data.drawerName} is choosing a word…`); }
+  roundStarted(data) { this.drawerId = data.drawerId; this.$('#roundNumber').textContent = data.roundNumber; this.$('#currentDrawer').textContent = data.drawerName; this.$('#wordForm').classList.add('hidden'); this.$('#guessForm').classList.add('hidden'); this.$('#secretWordInput').value = ''; this.$('#guessInput').value = ''; this.startTimer(data.timerSeconds); if (data.drawerId === this.myId) { this.$('#wordForm').classList.remove('hidden'); this.setAnnouncement('You are the drawer \u2014 enter a secret word.'); } else this.setAnnouncement(`${data.drawerName} is choosing a word\u2026`); }
   startTimer(seconds) { this.stopTimer(); let left = seconds; const render = () => { this.$('#roundTimer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; }; render(); this.timerInterval = setInterval(() => { left = Math.max(0, left - 1); render(); if (!left) this.stopTimer(); }, 1000); }
   stopTimer() { if (this.timerInterval) clearInterval(this.timerInterval); this.timerInterval = null; }
-  renderPlayers(players) { this.$('#playerCount').textContent = `${players.length} player${players.length === 1 ? '' : 's'}`; this.playerNames = new Map(players.map(player => [player.id, player.name])); players.forEach(player => { const cursor = this.userCursors.get(player.id); if (cursor) cursor.querySelector('.cursor-name').textContent = player.name; }); const current = players.find(player => player.id === this.drawerId); if (current) this.$('#currentDrawer').textContent = current.name; }
-  renderScores(scores, leaderName) { const list = this.$('#scoreList'); list.innerHTML = ''; const highest = scores.length ? Math.max(...scores.map(player => player.score)) : 0; scores.forEach(player => { const item = document.createElement('li'); if (player.score === highest && scores.length) item.classList.add('leader'); item.innerHTML = `<span><b>${player.name}</b> <small>#${player.number}</small></span><strong>${player.score}</strong>`; list.appendChild(item); }); if (leaderName) this.$('.scoreboard h2').textContent = `Scoreboard · ${leaderName}`; }
-  clearCanvas() { this.canvas.state.paths = []; this.canvas.state.redoStack = []; this.canvas.redraw(); }
+  renderPlayers(players) {
+    this.$('#playerCount').textContent = `${players.length} player${players.length === 1 ? '' : 's'}`;
+    this.playerNames = new Map(players.map(player => [player.id, player.name]));
+    // Remove cursors for players who left
+    for (const [id, cursor] of [...this.userCursors]) {
+      if (!this.playerNames.has(id)) { cursor.remove(); this.userCursors.delete(id); }
+      else cursor.querySelector('.cursor-name').textContent = this.playerNames.get(id);
+    }
+    const current = players.find(player => player.id === this.drawerId);
+    if (current) this.$('#currentDrawer').textContent = current.name;
+  }
+  renderScores(scores, leaderName) {
+    const list = this.$('#scoreList');
+    list.textContent = '';
+    const highest = scores.length ? Math.max(...scores.map(player => player.score)) : 0;
+    scores.forEach(player => {
+      const item = document.createElement('li');
+      if (player.score === highest && scores.length) item.classList.add('leader');
+      const nameWrap = document.createElement('span');
+      const name = document.createElement('b');
+      name.textContent = player.name;
+      const num = document.createElement('small');
+      num.textContent = `#${player.number}`;
+      nameWrap.append(name, ' ', num);
+      const score = document.createElement('strong');
+      score.textContent = String(player.score);
+      item.append(nameWrap, score);
+      list.appendChild(item);
+    });
+    if (leaderName) this.$('.scoreboard h2').textContent = `Scoreboard \u00b7 ${leaderName}`;
+  }
+  clearCanvas() { this.canvas.clearAll(); }
   setupToolbar() {
     const PALETTE = ['#171a26', '#ffffff', '#6d7cff', '#56d5a2', '#ff7183', '#ffb454', '#4dd0e1', '#f06292', '#ba68c8', '#a1887f', '#ffd54f', '#26c6da', '#ef5350', '#8bc34a', '#7986cb', '#ff8a65'];
     const palette = this.$('#colorPalette');
@@ -77,10 +111,10 @@ class CollaborativeDrawingApp {
     document.querySelectorAll('.tool:not(#fillToggle)').forEach(tool => tool.addEventListener('click', event => { document.querySelector('.tool.active:not(#fillToggle)')?.classList.remove('active'); event.currentTarget.classList.add('active'); }));
     this.$('#fillToggle').addEventListener('click', event => event.currentTarget.classList.toggle('active'));
     this.$('#strokeWidth').addEventListener('input', event => this.$('.stroke-value').textContent = `${event.target.value}px`);
-    this.$('#undo').addEventListener('click', () => { this.canvas.undo(); this.wsClient.sendUndo(this.room); });
-    this.$('#redo').addEventListener('click', () => { this.canvas.redo(); this.wsClient.sendRedo(this.room); });
+    this.$('#undo').addEventListener('click', () => this.wsClient.sendUndo(this.room));
+    this.$('#redo').addEventListener('click', () => this.wsClient.sendRedo(this.room));
     this.$('#clearCanvas').addEventListener('click', () => { this.canvas.clearAll(); this.wsClient.socket.emit('clear'); });
-    this.$('#downloadCanvas').addEventListener('click', () => { const link = document.createElement('a'); link.download = 'draw-guess.png'; link.href = this.canvas.canvas.toDataURL('image/png'); link.click(); });
+    this.$('#downloadCanvas').addEventListener('click', () => { const link = document.createElement('a'); link.download = 'draw-guess.png'; link.href = this.canvas.toDataURL(); link.click(); });
   }
   setupCursorTracking() { let waiting = false; document.addEventListener('mousemove', event => { if (waiting) return; waiting = true; setTimeout(() => { const rect = this.$('#drawingCanvas').getBoundingClientRect(); const x = event.clientX - rect.left, y = event.clientY - rect.top; if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) this.wsClient.sendCursorMove(this.room, x, y); waiting = false; }, 30); }); }
   updateUserCursor(id, x, y) { if (id === this.myId) return; let cursor = this.userCursors.get(id); if (!cursor) { cursor = document.createElement('div'); cursor.className = 'user-cursor'; const name = this.playerNames.get(id) || 'Player'; cursor.innerHTML = '<div class="cursor-pointer"></div><div class="cursor-name"></div>'; cursor.querySelector('.cursor-name').textContent = name; this.$('.canvas-container').appendChild(cursor); this.userCursors.set(id, cursor); } cursor.style.transform = `translate(${x}px, ${y}px)`; }
